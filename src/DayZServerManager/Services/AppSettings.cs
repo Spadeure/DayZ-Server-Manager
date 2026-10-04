@@ -19,6 +19,15 @@ public class AppSettings
     /// <summary>Dernier nom d'utilisateur Steam utilisé (jamais le mot de passe).</summary>
     public string SteamUser { get; set; } = "";
 
+    /// <summary>Port de jeu du serveur (les 3 ports suivants sont aussi utilisés).</summary>
+    public int GamePort { get; set; } = 2302;
+
+    /// <summary>Port de requête Steam (liste des serveurs).</summary>
+    public int QueryPort { get; set; } = 27016;
+
+    /// <summary>Port RCon de BattlEye (administration à distance).</summary>
+    public int RconPort { get; set; } = 2306;
+
     private static AppSettings Load()
     {
         try

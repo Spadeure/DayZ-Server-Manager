@@ -1,4 +1,4 @@
 Nouveautés :
-• Nouvel onglet « Mises à jour » : l'application se met à jour en un clic, sans retélécharger le .exe à la main.
-• Les messages de SteamCMD s'affichent en direct : demande de confirmation Steam Guard, vraie barre de progression.
-• Le « 0 % » s'affiche correctement.
+• Nouvel onglet « Pare-feu » : ouvre en un clic les ports du serveur DayZ dans le pare-feu Windows (jeu, requête Steam, RCon BattlEye) et autorise le programme du serveur.
+• Les numéros de ports sont modifiables et enregistrés.
+• L'étape 4 « Pare-feu » de la page Installation se valide automatiquement.

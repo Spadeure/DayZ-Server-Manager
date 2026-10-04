@@ -13,6 +13,7 @@ public partial class InstallPage : UserControl
 
     private bool _dependenciesOk;
     private CancellationTokenSource? _cts;
+    private bool _firewallOk;
 
     public InstallPage()
     {
@@ -207,14 +208,39 @@ public partial class InstallPage : UserControl
 
         _dependenciesOk = deps.Where(d => d.Name != "SteamCMD").All(d => d.Installed);
         UpdateSteps();
+        _ = RefreshFirewallAsync();
+    }
+
+    /// <summary>Remet à jour la page (appelé quand on revient sur l'onglet Installation).</summary>
+    public void Refresh()
+    {
+        if (_cts == null) RefreshDependencies();
+    }
+
+    private async Task RefreshFirewallAsync()
+    {
+        try
+        {
+            var status = await FirewallService.GetStatusAsync();
+            _firewallOk = status.Values.All(open => open);
+        }
+        catch
+        {
+            _firewallOk = false;
+        }
+        UpdateSteps();
     }
 
     private void UpdateSteps()
     {
         bool hasFolder = !string.IsNullOrWhiteSpace(FolderBox.Text);
         bool serverInstalled = DependencyChecker.IsServerInstalled(FolderBox.Text);
-        int current = !hasFolder ? 0 : serverInstalled ? 3 : _dependenciesOk ? 2 : 1;
-        StepBadge.Text = $"Étape {current + 1} sur {StepNames.Length}";
+        int current = !hasFolder ? 0
+            : !serverInstalled ? (_dependenciesOk ? 2 : 1)
+            : _firewallOk ? StepNames.Length : 3;
+        StepBadge.Text = current >= StepNames.Length
+            ? "Installation terminée"
+            : $"Étape {current + 1} sur {StepNames.Length}";
 
         if (_cts == null)
             StartButton.Content = serverInstalled ? "Mettre à jour le serveur" : "Lancer l'installation";
