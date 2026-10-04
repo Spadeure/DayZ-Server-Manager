@@ -10,27 +10,25 @@
 
         <StackPanel Grid.Row="0">
             <TextBlock Text="MODS" Style="{StaticResource PageTitle}" />
-            <TextBlock Text="Installe les mods du Steam Workshop sur ton serveur, avec leurs clés." FontSize="14"
+            <TextBlock Text="Cherche un mod du Steam Workshop et installe-le sur ton serveur en un clic." FontSize="14"
                        Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" />
         </StackPanel>
 
-        <!-- ===== Ajouter ===== -->
+        <!-- ===== Recherche ===== -->
         <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,24,0,20">
             <StackPanel>
-                <TextBlock Text="AJOUTER UN MOD" Style="{StaticResource SectionTitle}" />
-                <TextBlock Text="Colle le lien du mod sur le Steam Workshop, ou son numéro."
-                           Style="{StaticResource MutedText}" Margin="0,14,0,6" />
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="ModInput" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14" />
-                    <Button x:Name="AddButton" Grid.Column="1" Content="Ajouter" Style="{StaticResource PrimaryButton}"
-                            Margin="8,0,0,0" Click="Add_Click" />
+                    <TextBox x:Name="SearchBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14"
+                             KeyDown="SearchBox_KeyDown" />
+                    <Button x:Name="SearchButton" Grid.Column="1" Content="Rechercher" Style="{StaticResource PrimaryButton}"
+                            Margin="8,0,0,0" Click="Search_Click" />
                 </Grid>
                 <TextBlock Style="{StaticResource MutedText}" Margin="0,8,0,0"
-                           Text="Exemple : https://steamcommunity.com/sharedfiles/filedetails/?id=1559212036" />
+                           Text="Tape le nom d'un mod (ex. : Expansion, CF, Trader…), ou colle directement son lien du Workshop." />
             </StackPanel>
         </Border>
 
@@ -41,7 +39,7 @@
                 <ColumnDefinition Width="2*" />
             </Grid.ColumnDefinitions>
 
-            <!-- ===== Liste ===== -->
+            <!-- ===== Résultats / Installés ===== -->
             <Border Grid.Column="0" Style="{StaticResource Card}">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -49,16 +47,27 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
+
                     <DockPanel>
                         <Button x:Name="UpdateAllButton" DockPanel.Dock="Right" Content="Mettre à jour tous les mods"
-                                Style="{StaticResource SmallButton}" Click="UpdateAll_Click" />
-                        <TextBlock x:Name="ListTitle" Text="MODS INSTALLÉS" Style="{StaticResource SectionTitle}"
-                                   VerticalAlignment="Center" />
+                                Style="{StaticResource SmallButton}" VerticalAlignment="Center" Click="UpdateAll_Click" />
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="ResultsTab" Content="Résultats" GroupName="modtabs"
+                                         Style="{StaticResource ChipButton}" Height="36" Padding="14,0" Checked="Tab_Checked" />
+                            <RadioButton x:Name="InstalledTab" Content="Installés" GroupName="modtabs"
+                                         Style="{StaticResource ChipButton}" Height="36" Padding="14,0" Checked="Tab_Checked" />
+                        </StackPanel>
                     </DockPanel>
-                    <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto"
+
+                    <ScrollViewer x:Name="ResultsScroll" Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="ResultsList" />
+                    </ScrollViewer>
+                    <ScrollViewer x:Name="InstalledScroll" Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
                         <StackPanel x:Name="ModsList" />
                     </ScrollViewer>
+
                     <TextBlock x:Name="StatusText" Grid.Row="2" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
                                Foreground="{StaticResource MutedBrush}" Margin="0,12,0,0" />
                 </Grid>

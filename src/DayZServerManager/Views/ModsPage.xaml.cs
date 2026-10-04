@@ -1,4 +1,7 @@
+using System.Diagnostics;
 using System.IO;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -9,35 +12,97 @@ namespace DayZServerManager.Views;
 public partial class ModsPage : UserControl
 {
     private bool _busy;
+    private bool _searching;
+    private bool _popularLoaded;
+    private List<WorkshopItem> _results = new();
+    private readonly Dictionary<string, string> _knownTitles = new();
 
     public ModsPage()
     {
         InitializeComponent();
-        Refresh();
+        ResultsTab.IsChecked = true;
+        BuildList();
     }
 
-    /// <summary>Remet à jour la liste (appelé à chaque ouverture de l'onglet).</summary>
-    public void Refresh() => BuildList();
+    /// <summary>Remet à jour la page (appelé à chaque ouverture de l'onglet).</summary>
+    public void Refresh()
+    {
+        BuildList();
+        BuildResults();
+        if (!_popularLoaded)
+        {
+            _popularLoaded = true;
+            _ = SearchAsync("");
+        }
+    }
+
+    // ===== Recherche =====
+
+    private async void Search_Click(object sender, RoutedEventArgs e) => await SearchAsync(SearchBox.Text);
+
+    private async void SearchBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) await SearchAsync(SearchBox.Text);
+    }
+
+    private async Task SearchAsync(string query)
+    {
+        if (_searching) return;
+        _searching = true;
+        SearchButton.IsEnabled = false;
+        ResultsTab.IsChecked = true;
+        ShowStatus(string.IsNullOrWhiteSpace(query) ? "Chargement des mods populaires…" : "Recherche en cours…", "MutedBrush");
+
+        try
+        {
+            // Un lien ou un numéro de mod : on affiche directement ce mod.
+            var directId = query.Contains("id=") || query.Trim().All(char.IsDigit) ? ModService.ParseWorkshopId(query) : null;
+            _results = directId != null
+                ? await WorkshopService.GetDetailsAsync([directId])
+                : await WorkshopService.SearchAsync(query);
+
+            foreach (var item in _results) _knownTitles[item.Id] = item.Title;
+
+            if (_results.Count == 0)
+                ShowStatus("Aucun mod trouvé. Essaie un autre nom.", "WarnBrush");
+            else if (string.IsNullOrWhiteSpace(query))
+                ShowStatus("Les mods DayZ les plus populaires. Tape un nom pour chercher.", "MutedBrush");
+            else
+                ShowStatus($"{_results.Count} mod(s) trouvé(s).", "MutedBrush");
+        }
+        catch (Exception ex)
+        {
+            _results = new();
+            ShowStatus($"Recherche impossible : {ex.Message}", "WarnBrush");
+        }
+        finally
+        {
+            _searching = false;
+            SearchButton.IsEnabled = true;
+            BuildResults();
+        }
+    }
+
+    private void Tab_Checked(object sender, RoutedEventArgs e)
+    {
+        if (ResultsScroll == null || InstalledScroll == null) return;
+        bool showResults = ResultsTab.IsChecked == true;
+        ResultsScroll.Visibility = showResults ? Visibility.Visible : Visibility.Collapsed;
+        InstalledScroll.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
+        UpdateAllButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     // ===== Actions =====
 
-    private async void Add_Click(object sender, RoutedEventArgs e)
+    private async Task InstallAsync(WorkshopItem item)
     {
         if (_busy) return;
-        var id = ModService.ParseWorkshopId(ModInput.Text);
-        if (id == null)
+        if (AppSettings.Current.Mods.Any(m => m.Id == item.Id))
         {
-            ShowStatus("Lien ou numéro de mod invalide.", "WarnBrush");
+            ShowStatus($"« {item.Title} » est déjà installé.", "MutedBrush");
             return;
         }
-        if (AppSettings.Current.Mods.Any(m => m.Id == id))
-        {
-            ShowStatus("Ce mod est déjà dans la liste. Utilise « Mettre à jour tous les mods » pour le mettre à jour.", "WarnBrush");
-            return;
-        }
-
-        await DownloadAndInstallAsync([id]);
-        ModInput.Text = "";
+        await DownloadAndInstallAsync([item.Id]);
     }
 
     private async void UpdateAll_Click(object sender, RoutedEventArgs e)
@@ -121,7 +186,8 @@ public partial class ModsPage : UserControl
             {
                 var source = Path.Combine(steam.WorkshopContentFolder, id);
                 var existing = AppSettings.Current.Mods.FirstOrDefault(m => m.Id == id);
-                var name = ModService.ReadModName(source, existing?.Name ?? id);
+                var fallback = existing?.Name ?? (_knownTitles.TryGetValue(id, out var title) ? title : id);
+                var name = ModService.ReadModName(source, fallback);
                 var folderName = existing?.Folder ?? UniqueFolderName(ModService.MakeFolderName(name, id), id);
 
                 Log($"Copie de « {name} » dans le serveur ({folderName})…");
@@ -152,6 +218,7 @@ public partial class ModsPage : UserControl
         {
             SetBusy(false);
             BuildList();
+            BuildResults();
         }
     }
 
@@ -205,7 +272,7 @@ public partial class ModsPage : UserControl
     private void BuildList()
     {
         var mods = AppSettings.Current.Mods;
-        ListTitle.Text = $"MODS INSTALLÉS ({mods.Count})";
+        InstalledTab.Content = $"Installés ({mods.Count})";
         ModsList.Children.Clear();
 
         if (mods.Count == 0)
@@ -223,6 +290,114 @@ public partial class ModsPage : UserControl
         for (int i = 0; i < mods.Count; i++)
             ModsList.Children.Add(BuildRow(mods[i], i, mods.Count));
     }
+
+    private void BuildResults()
+    {
+        ResultsList.Children.Clear();
+        for (int i = 0; i < _results.Count; i++)
+            ResultsList.Children.Add(BuildResultRow(_results[i], i));
+    }
+
+    private UIElement BuildResultRow(WorkshopItem item, int index)
+    {
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        // Image du mod (chargée en arrière-plan).
+        var preview = new Border
+        {
+            Width = 112,
+            Height = 63,
+            CornerRadius = new CornerRadius(8),
+            Background = Res("Panel2Brush"),
+            Margin = new Thickness(0, 0, 14, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        if (Uri.TryCreate(item.PreviewUrl, UriKind.Absolute, out var imageUri))
+        {
+            try
+            {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = imageUri;
+                bitmap.DecodePixelWidth = 224;
+                bitmap.EndInit();
+                preview.Background = new ImageBrush(bitmap) { Stretch = Stretch.UniformToFill };
+            }
+            catch
+            {
+                // Image indisponible : on garde le fond uni.
+            }
+        }
+        grid.Children.Add(preview);
+
+        var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        texts.Children.Add(new TextBlock
+        {
+            Text = item.Title,
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Res("TextBrush"),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        texts.Children.Add(new TextBlock
+        {
+            Text = $"{FormatCount(item.Subscriptions)} abonnés · {FormatSize(item.FileSize)} · mis à jour le {item.Updated:dd/MM/yyyy}",
+            FontSize = 12,
+            Foreground = Res("MutedBrush"),
+            Margin = new Thickness(0, 4, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        });
+        Grid.SetColumn(texts, 1);
+        grid.Children.Add(texts);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var view = new Button
+        {
+            Content = "Voir",
+            Style = (Style)Application.Current.FindResource("SmallButton"),
+            Margin = new Thickness(12, 0, 0, 0),
+            ToolTip = "Ouvrir la page du mod sur le Steam Workshop",
+        };
+        view.Click += (_, _) => Process.Start(new ProcessStartInfo(item.Url) { UseShellExecute = true });
+        buttons.Children.Add(view);
+
+        bool installed = AppSettings.Current.Mods.Any(m => m.Id == item.Id);
+        var install = new Button
+        {
+            Content = installed ? "Installé ✓" : "Installer",
+            Style = (Style)Application.Current.FindResource(installed ? "SmallButton" : "PrimaryButton"),
+            Height = 32,
+            Padding = new Thickness(14, 0, 14, 0),
+            FontSize = 12,
+            Margin = new Thickness(8, 0, 0, 0),
+            IsEnabled = !installed && !_busy,
+        };
+        install.Click += async (_, _) => await InstallAsync(item);
+        buttons.Children.Add(install);
+        Grid.SetColumn(buttons, 2);
+        grid.Children.Add(buttons);
+
+        return new Border
+        {
+            BorderBrush = Res("LineBrush"),
+            BorderThickness = new Thickness(0, index == 0 ? 0 : 1, 0, 0),
+            Padding = new Thickness(0, 10, 0, 10),
+            Child = grid,
+        };
+    }
+
+    private static string FormatCount(long value) =>
+        value >= 1_000_000 ? $"{value / 1_000_000.0:0.#} M"
+        : value >= 1_000 ? $"{value / 1_000.0:0.#} k"
+        : value.ToString();
+
+    private static string FormatSize(long bytes) =>
+        bytes >= 1_073_741_824 ? $"{bytes / 1_073_741_824.0:0.#} Go"
+        : bytes >= 1_048_576 ? $"{bytes / 1_048_576.0:0} Mo"
+        : $"{Math.Max(1, bytes / 1024)} Ko";
 
     private UIElement BuildRow(ModEntry mod, int index, int count)
     {
@@ -338,9 +513,10 @@ public partial class ModsPage : UserControl
     private void SetBusy(bool busy)
     {
         _busy = busy;
-        AddButton.IsEnabled = !busy;
+        SearchButton.IsEnabled = !busy && !_searching;
         UpdateAllButton.IsEnabled = !busy;
         BuildList();
+        BuildResults();
     }
 
     private void Log(string message)
