@@ -3,6 +3,16 @@ using System.Text.Json;
 
 namespace DayZServerManager.Services;
 
+/// <summary>Un mod du Steam Workshop installé sur le serveur.</summary>
+public class ModEntry
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string Folder { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+    public bool ServerSide { get; set; }
+}
+
 /// <summary>Réglages de l'application, enregistrés dans %AppData%\DayZServerManager.</summary>
 public class AppSettings
 {
@@ -27,6 +37,17 @@ public class AppSettings
 
     /// <summary>Port RCon de BattlEye (administration à distance).</summary>
     public int RconPort { get; set; } = 2306;
+
+    /// <summary>Redémarre le serveur tout seul s'il plante.</summary>
+    public bool AutoRestart { get; set; } = true;
+
+    /// <summary>Redémarrage programmé toutes les X heures.</summary>
+    public bool ScheduledRestart { get; set; }
+
+    public int RestartHours { get; set; } = 4;
+
+    /// <summary>Mods du Workshop installés sur le serveur, dans l'ordre de chargement.</summary>
+    public List<ModEntry> Mods { get; set; } = new();
 
     private static AppSettings Load()
     {

@@ -46,6 +46,50 @@ public partial class InstallPage : UserControl
         RefreshDependencies();
     }
 
+    private async void InstallDeps_Click(object sender, RoutedEventArgs e)
+    {
+        if (_cts != null) return;
+        _cts = new CancellationTokenSource();
+        SetBusy(true);
+        try
+        {
+            await InstallMissingDependenciesAsync(_cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            Log("Installation annulée.");
+        }
+        catch (Exception ex)
+        {
+            Log($"Erreur : {ex.Message}");
+        }
+        finally
+        {
+            _cts.Dispose();
+            _cts = null;
+            SetBusy(false);
+            RefreshDependencies();
+        }
+    }
+
+    private async Task InstallMissingDependenciesAsync(CancellationToken ct)
+    {
+        void Report(string message) => Dispatcher.Invoke(() => Log(message));
+        var deps = DependencyChecker.Check(FolderBox.Text);
+
+        if (deps.Any(d => d.Name.StartsWith("Visual") && !d.Installed))
+        {
+            ProgressInfo.Text = "Installation de Visual C++";
+            await DependencyInstaller.InstallVcRedistAsync(Report, ct);
+        }
+        if (deps.Any(d => d.Name.StartsWith("DirectX") && !d.Installed))
+        {
+            ProgressInfo.Text = "Installation de DirectX";
+            await DependencyInstaller.InstallDirectXAsync(Report, ct);
+        }
+        RefreshDependencies();
+    }
+
     private void Recheck_Click(object sender, RoutedEventArgs e)
     {
         RefreshDependencies();
@@ -96,6 +140,8 @@ public partial class InstallPage : UserControl
         SetBusy(true);
         try
         {
+            if (!_dependenciesOk) await InstallMissingDependenciesAsync(_cts.Token);
+
             if (!File.Exists(steam.SteamCmdExe))
             {
                 ShowProgress("Installation de SteamCMD", 0, 0, 0);
@@ -207,6 +253,7 @@ public partial class InstallPage : UserControl
         }
 
         _dependenciesOk = deps.Where(d => d.Name != "SteamCMD").All(d => d.Installed);
+        InstallDepsButton.Visibility = _dependenciesOk ? Visibility.Collapsed : Visibility.Visible;
         UpdateSteps();
         _ = RefreshFirewallAsync();
     }
@@ -254,6 +301,7 @@ public partial class InstallPage : UserControl
     {
         BrowseButton.IsEnabled = !busy;
         RecheckButton.IsEnabled = !busy;
+        InstallDepsButton.IsEnabled = !busy;
         if (busy) StartButton.Content = "Annuler";
         else UpdateSteps();
     }

@@ -1,0 +1,122 @@
+<UserControl x:Class="DayZServerManager.Views.ConfigPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,0,8,0">
+            <TextBlock Text="CONFIGURATION" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Les réglages principaux du fichier serverDZ.cfg, sans ouvrir le fichier." FontSize="14"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" />
+
+            <Border x:Name="NotInstalledPanel" Style="{StaticResource Card}" Margin="0,24,0,0" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="SERVEUR NON INSTALLÉ" Style="{StaticResource SectionTitle}"
+                               Foreground="{StaticResource WarnBrush}" />
+                    <TextBlock Text="Installe d'abord le serveur depuis l'onglet Installation : le fichier serverDZ.cfg sera alors disponible."
+                               Style="{StaticResource MutedText}" FontSize="13" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel x:Name="EditorPanel">
+                <!-- ===== Général ===== -->
+                <Border Style="{StaticResource Card}" Margin="0,24,0,0">
+                    <StackPanel>
+                        <TextBlock Text="GÉNÉRAL" Style="{StaticResource SectionTitle}" />
+
+                        <TextBlock Text="Nom du serveur (affiché dans la liste du jeu)" Style="{StaticResource MutedText}"
+                                   Margin="0,16,0,6" />
+                        <TextBox x:Name="HostnameBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14" />
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Mot de passe pour rejoindre (vide = public)" Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <TextBox x:Name="JoinPasswordBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Mot de passe administrateur" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
+                                <TextBox x:Name="AdminPasswordBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Nombre de joueurs maximum" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
+                                <TextBox x:Name="MaxPlayersBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI"
+                                         FontSize="14" MaxLength="3" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Mot de passe RCon (administration à distance)" Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <TextBox x:Name="RconPasswordBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== Carte ===== -->
+                <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+                    <StackPanel>
+                        <TextBlock Text="CARTE" Style="{StaticResource SectionTitle}" />
+                        <WrapPanel Margin="0,16,0,0">
+                            <RadioButton x:Name="ChernarusChip" Content="Chernarus" GroupName="map" Style="{StaticResource ChipButton}" />
+                            <RadioButton x:Name="LivoniaChip" Content="Livonia" GroupName="map" Style="{StaticResource ChipButton}" />
+                            <RadioButton x:Name="SakhalChip" Content="Sakhal" GroupName="map" Style="{StaticResource ChipButton}" />
+                        </WrapPanel>
+                        <TextBlock x:Name="MapInfo" Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
+
+                <!-- ===== Jeu ===== -->
+                <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+                    <StackPanel>
+                        <TextBlock Text="JEU" Style="{StaticResource SectionTitle}" />
+                        <CheckBox x:Name="ThirdPersonToggle" Content="Vue à la 3ᵉ personne" Style="{StaticResource ToggleSwitch}"
+                                  Margin="0,18,0,0" />
+                        <CheckBox x:Name="CrosshairToggle" Content="Réticule de visée" Style="{StaticResource ToggleSwitch}"
+                                  Margin="0,14,0,0" />
+                        <CheckBox x:Name="VoiceToggle" Content="Chat vocal" Style="{StaticResource ToggleSwitch}"
+                                  Margin="0,14,0,0" />
+                        <CheckBox x:Name="PersistentTimeToggle" Content="Garder l'heure du jeu après un redémarrage"
+                                  Style="{StaticResource ToggleSwitch}" Margin="0,14,0,0" />
+
+                        <Grid Margin="0,20,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Vitesse du temps le jour (1 = réel, max 24)" Style="{StaticResource MutedText}"
+                                           Margin="0,0,0,6" />
+                                <TextBox x:Name="DayAccelBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Vitesse du temps la nuit (multiplie la vitesse du jour, max 64)"
+                                           Style="{StaticResource MutedText}" Margin="0,0,0,6" />
+                                <TextBox x:Name="NightAccelBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock x:Name="StatusText" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,20,0,0" />
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,8">
+                    <Button Content="Ouvrir le fichier" Style="{StaticResource SecondaryButton}" Click="OpenFile_Click" />
+                    <Button Content="Enregistrer" Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Click="Save_Click" />
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

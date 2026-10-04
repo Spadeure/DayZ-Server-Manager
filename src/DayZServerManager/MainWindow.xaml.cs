@@ -13,6 +13,9 @@ public partial class MainWindow : Window
     private readonly InstallPage _installPage;
     private readonly UpdatePage _updatePage;
     private readonly FirewallPage _firewallPage;
+    private readonly ServerPage _serverPage;
+    private readonly ConfigPage _configPage;
+    private readonly ModsPage _modsPage;
 
     public MainWindow()
     {
@@ -29,6 +32,9 @@ public partial class MainWindow : Window
         _installPage = new InstallPage();
         _updatePage = new UpdatePage();
         _firewallPage = new FirewallPage();
+        _serverPage = new ServerPage();
+        _configPage = new ConfigPage();
+        _modsPage = new ModsPage();
         _updatePage.UpdateAvailabilityChanged += OnUpdateAvailabilityChanged;
         ShowPage("install");
 
@@ -46,9 +52,9 @@ public partial class MainWindow : Window
     {
         PageHost.Content = tag switch
         {
-            "server" => new PlaceholderPage("SERVEUR", "Démarrer, arrêter et surveiller ton serveur DayZ."),
-            "config" => new PlaceholderPage("CONFIGURATION", "Nom du serveur, mot de passe, joueurs, carte…"),
-            "mods" => new PlaceholderPage("MODS", "Installer et mettre à jour les mods du Workshop."),
+            "server" => _serverPage,
+            "config" => _configPage,
+            "mods" => _modsPage,
             "firewall" => _firewallPage,
             "logs" => new PlaceholderPage("JOURNAUX", "Consulter les journaux du serveur et de l'application."),
             "updates" => _updatePage,
@@ -57,6 +63,9 @@ public partial class MainWindow : Window
 
         if (tag == "install") _installPage.Refresh();
         if (tag == "firewall") _ = _firewallPage.RefreshAsync();
+        if (tag == "server") _serverPage.Refresh();
+        if (tag == "config") _configPage.Load();
+        if (tag == "mods") _modsPage.Refresh();
 
         // Petite animation d'apparition de la page.
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };

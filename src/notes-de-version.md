@@ -1,4 +1,5 @@
 Nouveautés :
-• Nouvel onglet « Pare-feu » : ouvre en un clic les ports du serveur DayZ dans le pare-feu Windows (jeu, requête Steam, RCon BattlEye) et autorise le programme du serveur.
-• Les numéros de ports sont modifiables et enregistrés.
-• L'étape 4 « Pare-feu » de la page Installation se valide automatiquement.
+• Onglet « Serveur » : démarrer, arrêter et redémarrer le serveur, avec redémarrage automatique en cas de crash et redémarrage programmé toutes les X heures.
+• Onglet « Configuration » : nom du serveur, mots de passe, joueurs, carte (Chernarus, Livonia, Sakhal), vue 3ᵉ personne, réticule, chat vocal, vitesse du temps et mot de passe RCon, sans ouvrir serverDZ.cfg.
+• Onglet « Mods » : ajoute un mod du Steam Workshop avec son lien, il est téléchargé, copié dans le serveur avec ses clés, et chargé au démarrage. Ordre de chargement, activation, mods côté serveur et mise à jour de tous les mods en un clic.
+• Installation automatique de Visual C++ et DirectX s'ils manquent (bouton « Installer » dans Dépendances).

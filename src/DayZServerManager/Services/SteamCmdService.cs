@@ -16,6 +16,10 @@ public record SteamCmdResult(int ExitCode, string Output)
 public sealed class SteamCmdService
 {
     public const string DayZServerAppId = "223350";
+    public const string DayZWorkshopAppId = "221100";
+
+    // Un seul SteamCMD à la fois (installation du serveur ou mods).
+    private static readonly SemaphoreSlim SteamLock = new(1, 1);
     private const string DownloadUrl = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip";
 
     private static readonly HttpClient Http = new();
@@ -31,6 +35,8 @@ public sealed class SteamCmdService
     public string SteamCmdFolder => DependencyChecker.SteamCmdFolder(_mainFolder);
     public string SteamCmdExe => Path.Combine(SteamCmdFolder, "steamcmd.exe");
     public string ServerFolder => DependencyChecker.ServerFolder(_mainFolder);
+    public string WorkshopContentFolder =>
+        Path.Combine(SteamCmdFolder, "steamapps", "workshop", "content", DayZWorkshopAppId);
 
     /// <summary>Une ligne à afficher dans le journal (déjà traduite quand c'est possible).</summary>
     public event Action<string>? Output;
@@ -40,6 +46,9 @@ public sealed class SteamCmdService
 
     /// <summary>Appelé quand SteamCMD demande un code Steam Guard. Renvoie null pour abandonner.</summary>
     public Func<string?>? AskSteamGuardCode { get; set; }
+
+    /// <summary>Appelé quand SteamCMD demande le mot de passe. Renvoie null pour abandonner.</summary>
+    public Func<string?>? AskPassword { get; set; }
 
     // ===== Installation de SteamCMD =====
 
@@ -75,6 +84,19 @@ public sealed class SteamCmdService
         return RunAsync(args, ct);
     }
 
+    // ===== Téléchargement des mods du Workshop =====
+
+    /// <summary>Télécharge des mods. Sans mot de passe, SteamCMD réutilise la connexion enregistrée.</summary>
+    public Task<SteamCmdResult> DownloadWorkshopItemsAsync(string user, string? password, IEnumerable<string> ids,
+        CancellationToken ct)
+    {
+        var args = new StringBuilder($"+login {Quote(user)}");
+        if (!string.IsNullOrEmpty(password)) args.Append(' ').Append(Quote(password));
+        foreach (var id in ids) args.Append($" +workshop_download_item {DayZWorkshopAppId} {id} validate");
+        args.Append(" +quit");
+        return RunAsync(args.ToString(), ct);
+    }
+
     // ===== Lancement de SteamCMD =====
 
     private static readonly Regex CursorMoveRegex = new(@"\x1B\[\d*(;\d*)?H", RegexOptions.Compiled);
@@ -85,21 +107,31 @@ public sealed class SteamCmdService
 
     private async Task<SteamCmdResult> RunAsync(string arguments, CancellationToken ct)
     {
-        var all = new StringBuilder();
-        _seenLines.Clear();
+        if (!await SteamLock.WaitAsync(0, ct))
+            throw new InvalidOperationException("SteamCMD est déjà en cours d'utilisation (installation ou mods). Attends la fin.");
 
-        using var console = PseudoConsoleProcess.Start(SteamCmdExe, arguments, SteamCmdFolder);
-        using var registration = ct.Register(console.Kill);
+        try
+        {
+            var all = new StringBuilder();
+            _seenLines.Clear();
 
-        var readTask = Task.Run(() => ReadOutputAsync(console, all));
-        await console.WaitForAllExitAsync();
-        await Task.Run(console.CloseConsole);
-        await readTask;
+            using var console = PseudoConsoleProcess.Start(SteamCmdExe, arguments, SteamCmdFolder);
+            using var registration = ct.Register(console.Kill);
 
-        ct.ThrowIfCancellationRequested();
-        string text;
-        lock (all) text = all.ToString();
-        return new SteamCmdResult(console.ExitCode, text);
+            var readTask = Task.Run(() => ReadOutputAsync(console, all));
+            await console.WaitForAllExitAsync();
+            await Task.Run(console.CloseConsole);
+            await readTask;
+
+            ct.ThrowIfCancellationRequested();
+            string text;
+            lock (all) text = all.ToString();
+            return new SteamCmdResult(console.ExitCode, text);
+        }
+        finally
+        {
+            SteamLock.Release();
+        }
     }
 
     private async Task ReadOutputAsync(PseudoConsoleProcess console, StringBuilder all)
@@ -126,7 +158,20 @@ public sealed class SteamCmdService
                 }
 
                 // Les questions de SteamCMD ne finissent pas par un retour à la ligne.
-                if (IsCodePrompt(Clean(raw)))
+                if (IsPasswordPrompt(Clean(raw)))
+                {
+                    pending.Clear();
+                    Output?.Invoke("Steam demande ton mot de passe.");
+                    var password = AskPassword?.Invoke();
+                    if (string.IsNullOrEmpty(password))
+                    {
+                        Output?.Invoke("Aucun mot de passe saisi : connexion abandonnée.");
+                        console.Kill();
+                        return;
+                    }
+                    console.Write(password + "\r");
+                }
+                else if (IsCodePrompt(Clean(raw)))
                 {
                     pending.Clear();
                     Output?.Invoke("Steam demande un code Steam Guard.");
@@ -158,6 +203,9 @@ public sealed class SteamCmdService
     /// <summary>Retire les codes de mise en forme de la console (couleurs, curseur…).</summary>
     private static string Clean(string text) =>
         EscapeRegex.Replace(CursorMoveRegex.Replace(text, "\n"), "").Replace("\b", "");
+
+    private static bool IsPasswordPrompt(string text) =>
+        text.TrimEnd().EndsWith("password:", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsCodePrompt(string text)
     {

@@ -57,6 +57,9 @@
                         <DockPanel>
                             <Button x:Name="RecheckButton" DockPanel.Dock="Right" Content="Revérifier" Style="{StaticResource SmallButton}"
                                     Click="Recheck_Click" />
+                            <Button x:Name="InstallDepsButton" DockPanel.Dock="Right" Content="Installer"
+                                    Style="{StaticResource SmallButton}" Margin="0,0,8,0" Visibility="Collapsed"
+                                    Click="InstallDeps_Click" />
                             <TextBlock Text="DÉPENDANCES" Style="{StaticResource SectionTitle}"
                                        VerticalAlignment="Center" />
                         </DockPanel>

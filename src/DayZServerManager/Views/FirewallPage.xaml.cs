@@ -138,7 +138,7 @@ public partial class FirewallPage : UserControl
             return false;
         }
 
-                int first = game; bool InGameRange(int port) => port >= first && port <= first + 3;
+        int first = game; bool InGameRange(int port) => port >= first && port <= first + 3;
         if (InGameRange(query) || InGameRange(rcon) || query == rcon)
         {
             ShowStatus($"Les ports doivent être différents, et ne pas être entre {game} et {game + 3}.", "WarnBrush");
