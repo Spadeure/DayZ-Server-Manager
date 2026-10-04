@@ -4,8 +4,6 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-  release:
-    types: [ published ]
 
 permissions:
   contents: write
@@ -26,11 +24,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          if ("${{ github.event_name }}" -eq "release") {
-            $v = "${{ github.event.release.tag_name }}".TrimStart('v', 'V')
-          } else {
-            $v = "0.0.${{ github.run_number }}"
-          }
+          $v = "1.0.${{ github.run_number }}"
           "value=$v" >> $env:GITHUB_OUTPUT
           Write-Host "Version : $v"
 
@@ -50,9 +44,12 @@ jobs:
           name: DayZServerManager-${{ steps.version.outputs.value }}
           path: publish/DayZServerManager.exe
 
-      - name: Joindre l'exe à la release
-        if: github.event_name == 'release'
+      - name: Publier la nouvelle version
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" publish/DayZServerManager.exe --clobber
+        run: |
+          $notes = "src/notes-de-version.md"
+          if (-not (Test-Path $notes)) { Set-Content -Path $notes -Value "Mise à jour." -Encoding utf8 }
+          $v = "${{ steps.version.outputs.value }}"
+          gh release create "v$v" publish/DayZServerManager.exe --title "Version $v" --notes-file $notes --latest
