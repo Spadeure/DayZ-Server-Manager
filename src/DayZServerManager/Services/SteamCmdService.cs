@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -78,84 +77,87 @@ public sealed class SteamCmdService
 
     // ===== Lancement de SteamCMD =====
 
+    private static readonly Regex CursorMoveRegex = new(@"\x1B\[\d*(;\d*)?H", RegexOptions.Compiled);
+    private static readonly Regex EscapeRegex = new(
+        @"\x1B\][^\x07\x1B]*(\x07|\x1B\\)|\x1B\[[0-9;?]*[ -/]*[@-~]|\x1B[@-Z\\-_]", RegexOptions.Compiled);
+
+    private readonly HashSet<string> _seenLines = new();
+
     private async Task<SteamCmdResult> RunAsync(string arguments, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo(SteamCmdExe, arguments)
-        {
-            WorkingDirectory = SteamCmdFolder,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = true,
-            StandardOutputEncoding = Encoding.UTF8,
-            StandardErrorEncoding = Encoding.UTF8,
-        };
-
         var all = new StringBuilder();
-        using var process = new Process { StartInfo = psi };
-        process.Start();
+        _seenLines.Clear();
 
-        using var registration = ct.Register(() => KillQuietly(process));
+        using var console = PseudoConsoleProcess.Start(SteamCmdExe, arguments, SteamCmdFolder);
+        using var registration = ct.Register(console.Kill);
 
-        var outputTask = Task.Run(() => ReadOutputAsync(process, all));
-        var errorTask = Task.Run(() => ReadErrorsAsync(process, all));
-        await Task.WhenAll(outputTask, errorTask);
-        await process.WaitForExitAsync();
+        var readTask = Task.Run(() => ReadOutputAsync(console, all));
+        await console.WaitForAllExitAsync();
+        await Task.Run(console.CloseConsole);
+        await readTask;
 
         ct.ThrowIfCancellationRequested();
         string text;
         lock (all) text = all.ToString();
-        return new SteamCmdResult(process.ExitCode, text);
+        return new SteamCmdResult(console.ExitCode, text);
     }
 
-    private async Task ReadOutputAsync(Process process, StringBuilder all)
+    private async Task ReadOutputAsync(PseudoConsoleProcess console, StringBuilder all)
     {
-        var reader = process.StandardOutput;
+        using var reader = new StreamReader(console.Output, new UTF8Encoding(false));
         var buffer = new char[4096];
         var pending = new StringBuilder();
-        int read;
 
-        while ((read = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
+        try
         {
-            pending.Append(buffer, 0, read);
-            var text = pending.ToString();
-
-            int cut = text.LastIndexOfAny(new[] { '\n', '\r' });
-            if (cut >= 0)
+            int read;
+            while ((read = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
             {
-                foreach (var line in text[..cut].Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
-                    HandleLine(line, all);
-                text = text[(cut + 1)..];
-                pending.Clear().Append(text);
-            }
+                pending.Append(buffer, 0, read);
+                var raw = pending.ToString();
 
-            // Les questions de SteamCMD ne finissent pas par un retour à la ligne.
-            if (IsCodePrompt(text))
-            {
-                pending.Clear();
-                Output?.Invoke("Steam demande un code Steam Guard.");
-                var code = AskSteamGuardCode?.Invoke();
-                if (string.IsNullOrWhiteSpace(code))
+                int cut = raw.LastIndexOfAny(new[] { '\n', '\r' });
+                if (cut >= 0)
                 {
-                    Output?.Invoke("Aucun code saisi : connexion abandonnée.");
-                    KillQuietly(process);
-                    return;
+                    foreach (var line in Clean(raw[..cut]).Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                        HandleLine(line, all);
+                    raw = raw[(cut + 1)..];
+                    pending.Clear().Append(raw);
                 }
-                await process.StandardInput.WriteLineAsync(code.Trim());
-                await process.StandardInput.FlushAsync();
+
+                // Les questions de SteamCMD ne finissent pas par un retour à la ligne.
+                if (IsCodePrompt(Clean(raw)))
+                {
+                    pending.Clear();
+                    Output?.Invoke("Steam demande un code Steam Guard.");
+                    var code = AskSteamGuardCode?.Invoke();
+                    if (string.IsNullOrWhiteSpace(code))
+                    {
+                        Output?.Invoke("Aucun code saisi : connexion abandonnée.");
+                        console.Kill();
+                        return;
+                    }
+                    console.Write(code.Trim() + "\r");
+                }
             }
         }
+        catch (IOException)
+        {
+            // La console a été fermée : fin normale de la lecture.
+        }
+        catch (ObjectDisposedException)
+        {
+            // Idem.
+        }
 
-        if (pending.Length > 0) HandleLine(pending.ToString(), all);
+        if (pending.Length > 0)
+            foreach (var line in Clean(pending.ToString()).Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                HandleLine(line, all);
     }
 
-    private async Task ReadErrorsAsync(Process process, StringBuilder all)
-    {
-        string? line;
-        while ((line = await process.StandardError.ReadLineAsync()) != null)
-            HandleLine(line, all);
-    }
+    /// <summary>Retire les codes de mise en forme de la console (couleurs, curseur…).</summary>
+    private static string Clean(string text) =>
+        EscapeRegex.Replace(CursorMoveRegex.Replace(text, "\n"), "").Replace("\b", "");
 
     private static bool IsCodePrompt(string text)
     {
@@ -167,6 +169,8 @@ public sealed class SteamCmdService
     {
         var line = raw.Trim();
         if (line.Length == 0) return;
+        // La console peut réafficher d'anciennes lignes : on ne les répète pas.
+        if (!_seenLines.Add(line)) return;
         lock (all) all.AppendLine(line);
 
         var match = ProgressRegex.Match(line);
@@ -220,16 +224,4 @@ public sealed class SteamCmdService
     }
 
     private static string Quote(string value) => "\"" + value.Replace("\"", "\\\"") + "\"";
-
-    private static void KillQuietly(Process process)
-    {
-        try
-        {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
-        }
-        catch
-        {
-            // Le processus est déjà terminé.
-        }
-    }
 }
