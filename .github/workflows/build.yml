@@ -1,0 +1,58 @@
+name: Compilation
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+  release:
+    types: [ published ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Déterminer la version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "release") {
+            $v = "${{ github.event.release.tag_name }}".TrimStart('v', 'V')
+          } else {
+            $v = "0.0.${{ github.run_number }}"
+          }
+          "value=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Version : $v"
+
+      - name: Compiler l'application
+        run: >
+          dotnet publish src/DayZServerManager/DayZServerManager.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:Version=${{ steps.version.outputs.value }}
+          -o publish
+
+      - name: Mettre l'exe à disposition
+        uses: actions/upload-artifact@v4
+        with:
+          name: DayZServerManager-${{ steps.version.outputs.value }}
+          path: publish/DayZServerManager.exe
+
+      - name: Joindre l'exe à la release
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" publish/DayZServerManager.exe --clobber
