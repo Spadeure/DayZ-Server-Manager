@@ -7,8 +7,7 @@
         WindowStyle="None" ResizeMode="CanResize"
         Background="{StaticResource BgBrush}"
         Foreground="{StaticResource TextBrush}"
-        FontFamily="Segoe UI"
-        Icon="pack://application:,,,/Assets/app.ico">
+        FontFamily="Segoe UI">
 
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0"
