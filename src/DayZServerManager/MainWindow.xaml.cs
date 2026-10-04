@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using DayZServerManager.Services;
 using DayZServerManager.Views;
 
 namespace DayZServerManager;
@@ -10,6 +11,7 @@ namespace DayZServerManager;
 public partial class MainWindow : Window
 {
     private readonly InstallPage _installPage;
+    private readonly UpdatePage _updatePage;
 
     public MainWindow()
     {
@@ -24,7 +26,12 @@ public partial class MainWindow : Window
             RootBorder.Padding = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
 
         _installPage = new InstallPage();
+        _updatePage = new UpdatePage();
+        _updatePage.UpdateAvailabilityChanged += OnUpdateAvailabilityChanged;
         ShowPage("install");
+
+        // Vérifie les mises à jour au démarrage, sans bloquer l'application.
+        Loaded += async (_, _) => await _updatePage.CheckAsync();
     }
 
     private void Nav_Checked(object sender, RoutedEventArgs e)
@@ -42,6 +49,7 @@ public partial class MainWindow : Window
             "mods" => new PlaceholderPage("MODS", "Installer et mettre à jour les mods du Workshop."),
             "firewall" => new PlaceholderPage("PARE-FEU", "Ouvrir les ports du serveur dans le pare-feu Windows."),
             "logs" => new PlaceholderPage("JOURNAUX", "Consulter les journaux du serveur et de l'application."),
+            "updates" => _updatePage,
             _ => _installPage,
         };
 
@@ -53,6 +61,15 @@ public partial class MainWindow : Window
         PageHost.RenderTransform = move;
         move.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(12, 0, duration) { EasingFunction = ease });
     }
+
+    private void OnUpdateAvailabilityChanged(bool available)
+    {
+        var v = UpdateService.CurrentVersion;
+        BuildText.Text = available ? "Mise à jour disponible !" : v.Major == 0 ? "Version de test" : "Version officielle";
+        BuildText.Foreground = (Brush)FindResource(available ? "AccentBrush" : "CyanBrush");
+    }
+
+    private void Version_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => UpdatesNav.IsChecked = true;
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 

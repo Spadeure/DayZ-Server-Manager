@@ -60,7 +60,8 @@
                         BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,1,0" Padding="12,20">
                     <DockPanel>
                         <Border DockPanel.Dock="Bottom" Background="{StaticResource Panel2Brush}"
-                                CornerRadius="10" Padding="14">
+                                CornerRadius="10" Padding="14" Cursor="Hand"
+                                ToolTip="Voir les mises à jour" MouseLeftButtonUp="Version_Click">
                             <StackPanel>
                                 <TextBlock x:Name="VersionText" FontSize="12" Foreground="{StaticResource MutedBrush}" />
                                 <TextBlock x:Name="BuildText" FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0"
@@ -83,6 +84,8 @@
                                          Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Journaux" Tag="logs"
                                          Checked="Nav_Checked" />
+                            <RadioButton x:Name="UpdatesNav" Style="{StaticResource NavButton}" Content="Mises à jour"
+                                         Tag="updates" Checked="Nav_Checked" />
                         </StackPanel>
                     </DockPanel>
                 </Border>
