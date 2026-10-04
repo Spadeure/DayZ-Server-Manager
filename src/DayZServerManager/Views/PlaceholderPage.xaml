@@ -1,0 +1,16 @@
+<UserControl x:Class="DayZServerManager.Views.PlaceholderPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <TextBlock x:Name="TitleText" Style="{StaticResource PageTitle}" />
+        <TextBlock x:Name="SubText" FontSize="14" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" />
+        <Border Style="{StaticResource Card}" Margin="0,24,0,0" Padding="28">
+            <StackPanel>
+                <TextBlock Text="BIENTÔT DISPONIBLE" Style="{StaticResource SectionTitle}"
+                           Foreground="{StaticResource AccentBrush}" />
+                <TextBlock Text="Cette section arrivera dans une prochaine mise à jour."
+                           Style="{StaticResource MutedText}" FontSize="13" Margin="0,8,0,0" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>
