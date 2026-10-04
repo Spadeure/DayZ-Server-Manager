@@ -12,6 +12,7 @@ public partial class InstallPage : UserControl
     private static readonly string[] StepNames = ["Dossier", "Dépendances", "Fichiers serveur", "Pare-feu"];
 
     private bool _dependenciesOk;
+    private CancellationTokenSource? _cts;
 
     public InstallPage()
     {
@@ -50,14 +51,89 @@ public partial class InstallPage : UserControl
         Log("Dépendances revérifiées.");
     }
 
-    private void Start_Click(object sender, RoutedEventArgs e)
+    private async void Start_Click(object sender, RoutedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(FolderBox.Text))
+        // Pendant une installation, le bouton sert à annuler.
+        if (_cts != null)
+        {
+            _cts.Cancel();
+            Log("Annulation en cours…");
+            return;
+        }
+
+        var folder = FolderBox.Text;
+        if (string.IsNullOrWhiteSpace(folder))
         {
             Log("Choisis d'abord un dossier d'installation.");
             return;
         }
-        Log("Le téléchargement automatique arrive dans la prochaine version.");
+
+        var login = new SteamLoginWindow(AppSettings.Current.SteamUser) { Owner = Window.GetWindow(this) };
+        if (login.ShowDialog() != true)
+        {
+            Log("Installation annulée.");
+            return;
+        }
+        AppSettings.Current.SteamUser = login.UserName;
+        AppSettings.Current.Save();
+
+        var steam = new SteamCmdService(folder);
+        steam.Output += line => Dispatcher.Invoke(() => Log(line));
+        steam.Progress += (stage, percent, done, total) =>
+            Dispatcher.Invoke(() => ShowProgress(stage, percent, done, total));
+        steam.AskSteamGuardCode = () => Dispatcher.Invoke(() =>
+        {
+            var dialog = new InputDialog("CODE STEAM GUARD",
+                "Ouvre l'application Steam sur ton téléphone, va dans Steam Guard et entre le code affiché.")
+            {
+                Owner = Window.GetWindow(this),
+            };
+            return dialog.ShowDialog() == true ? dialog.Value : null;
+        });
+
+        _cts = new CancellationTokenSource();
+        SetBusy(true);
+        try
+        {
+            if (!File.Exists(steam.SteamCmdExe))
+            {
+                ShowProgress("Installation de SteamCMD", 0, 0, 0);
+                await steam.InstallSteamCmdAsync(_cts.Token);
+                RefreshDependencies();
+            }
+
+            ShowProgress("Connexion à Steam", 0, 0, 0);
+            Log("Connexion à Steam et téléchargement des fichiers serveur…");
+            var result = await steam.DownloadServerAsync(login.UserName, login.Password, _cts.Token);
+
+            if (result.ServerInstallSucceeded && DependencyChecker.IsServerInstalled(folder))
+            {
+                ShowProgress("Installation terminée", 100, 0, 0);
+                Log($"Le serveur DayZ est installé dans : {steam.ServerFolder}");
+            }
+            else
+            {
+                ProgressInfo.Text = "Échec";
+                Log($"Le téléchargement n'a pas abouti (code {result.ExitCode}). Lis les messages ci-dessus.");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            ProgressInfo.Text = "Annulé";
+            Log("Installation annulée.");
+        }
+        catch (Exception ex)
+        {
+            ProgressInfo.Text = "Échec";
+            Log($"Erreur : {ex.Message}");
+        }
+        finally
+        {
+            _cts.Dispose();
+            _cts = null;
+            SetBusy(false);
+            RefreshDependencies();
+        }
     }
 
     // ===== Affichage =====
@@ -129,19 +205,42 @@ public partial class InstallPage : UserControl
             });
         }
 
-        _dependenciesOk = deps.All(d => d.Installed);
+        _dependenciesOk = deps.Where(d => d.Name != "SteamCMD").All(d => d.Installed);
         UpdateSteps();
     }
 
     private void UpdateSteps()
     {
-        int current = string.IsNullOrWhiteSpace(FolderBox.Text) ? 0 : !_dependenciesOk ? 1 : 2;
+        bool hasFolder = !string.IsNullOrWhiteSpace(FolderBox.Text);
+        bool serverInstalled = DependencyChecker.IsServerInstalled(FolderBox.Text);
+        int current = !hasFolder ? 0 : serverInstalled ? 3 : _dependenciesOk ? 2 : 1;
         StepBadge.Text = $"Étape {current + 1} sur {StepNames.Length}";
+
+        if (_cts == null)
+            StartButton.Content = serverInstalled ? "Mettre à jour le serveur" : "Lancer l'installation";
 
         StepsGrid.Children.Clear();
         for (int i = 0; i < StepNames.Length; i++)
             StepsGrid.Children.Add(BuildStep(i, current));
     }
+
+    private void SetBusy(bool busy)
+    {
+        BrowseButton.IsEnabled = !busy;
+        RecheckButton.IsEnabled = !busy;
+        if (busy) StartButton.Content = "Annuler";
+        else UpdateSteps();
+    }
+
+    private void ShowProgress(string stage, double percent, long done, long total)
+    {
+        Progress.Value = Math.Clamp(percent, 0, 100);
+        PercentText.Text = $"{percent:0} %";
+        ProgressInfo.Text = total > 0 ? $"{stage} · {FormatSize(done)} sur {FormatSize(total)}" : stage;
+    }
+
+    private static string FormatSize(long bytes) =>
+        bytes >= 1_073_741_824 ? $"{bytes / 1_073_741_824.0:0.0} Go" : $"{bytes / 1_048_576.0:0} Mo";
 
     private UIElement BuildStep(int index, int current)
     {

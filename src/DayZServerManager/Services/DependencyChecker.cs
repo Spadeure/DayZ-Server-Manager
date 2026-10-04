@@ -17,6 +17,12 @@ public static class DependencyChecker
 
     public static string SteamCmdFolder(string mainFolder) => Path.Combine(mainFolder, "SteamCMD");
 
+    public static string ServerFolder(string mainFolder) => Path.Combine(mainFolder, "Server");
+
+    public static bool IsServerInstalled(string mainFolder) =>
+        !string.IsNullOrWhiteSpace(mainFolder) &&
+        File.Exists(Path.Combine(ServerFolder(mainFolder), "DayZServer_x64.exe"));
+
     private static bool IsVcRedistInstalled()
     {
         foreach (var view in new[] { RegistryView.Registry32, RegistryView.Registry64 })

@@ -16,6 +16,9 @@ public class AppSettings
     /// <summary>Dossier principal choisi par l'utilisateur (SteamCMD + serveur).</summary>
     public string ServerFolder { get; set; } = "";
 
+    /// <summary>Dernier nom d'utilisateur Steam utilisé (jamais le mot de passe).</summary>
+    public string SteamUser { get; set; } = "";
+
     private static AppSettings Load()
     {
         try
