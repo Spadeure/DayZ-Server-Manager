@@ -20,7 +20,7 @@ public partial class InstallPage : UserControl
         InitializeComponent();
 
         FolderBox.Text = AppSettings.Current.ServerFolder;
-        Log("Bienvenue dans DayZ Server Manager.");
+        Log("Bienvenue dans Stryxhost Manager, le gestionnaire de serveurs DayZ.");
         Log(string.IsNullOrWhiteSpace(FolderBox.Text)
             ? "Choisis un dossier d'installation pour commencer."
             : $"Dossier d'installation : {FolderBox.Text}");

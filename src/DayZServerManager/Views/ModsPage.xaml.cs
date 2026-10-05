@@ -243,7 +243,7 @@ public partial class ModsPage : UserControl
     {
         if (_busy) return;
         var answer = MessageBox.Show(Window.GetWindow(this)!,
-            $"Supprimer le mod « {mod.Name} » du serveur ?", "DayZ Server Manager",
+            $"Supprimer le mod « {mod.Name} » du serveur ?", "Stryxhost Manager",
             MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes) return;
 

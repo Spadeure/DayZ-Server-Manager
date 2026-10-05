@@ -12,7 +12,7 @@ public record ReleaseInfo(Version Version, string Notes, DateTime Published, str
 /// <summary>Vérifie les nouvelles versions sur GitHub et met l'application à jour.</summary>
 public static class UpdateService
 {
-    private const string ReleasesUrl = "https://api.github.com/repos/Spadeure/DayZ-Server-Manager/releases?per_page=50";
+    private const string ReleasesUrl = "https://api.github.com/repos/Spadeure/Stryxhost-Manager/releases?per_page=50";
     private const string AssetName = "DayZServerManager.exe";
 
     private static readonly HttpClient Http = CreateClient();

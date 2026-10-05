@@ -39,7 +39,7 @@ public partial class App : Application
 
         MessageBox.Show(
             $"Une erreur est survenue :\n\n{e.Exception.Message}\n\nLe détail est enregistré dans :\n{logFile}",
-            "DayZ Server Manager", MessageBoxButton.OK, MessageBoxImage.Error);
+            "Stryxhost Manager", MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
     }
 }

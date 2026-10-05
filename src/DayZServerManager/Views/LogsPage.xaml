@@ -34,7 +34,7 @@
                                      ToolTip="Erreurs des scripts des mods" />
                         <RadioButton x:Name="AppChip" Content="Application" Tag="App" GroupName="logkind"
                                      Style="{StaticResource ChipButton}" Height="38" Padding="14,0" Checked="Kind_Checked"
-                                     ToolTip="Erreurs de DayZ Server Manager" />
+                                     ToolTip="Erreurs de Stryxhost Manager" />
                     </WrapPanel>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="Rechercher (joueur, message…)" Style="{StaticResource MutedText}" Margin="0,0,0,4" />

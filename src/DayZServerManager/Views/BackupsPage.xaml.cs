@@ -223,7 +223,7 @@ public partial class BackupsPage : UserControl
     }
 
     private bool Confirm(string message) =>
-        MessageBox.Show(Window.GetWindow(this)!, message, "DayZ Server Manager",
+        MessageBox.Show(Window.GetWindow(this)!, message, "Stryxhost Manager",
             MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
 
     private void SetButtons(bool enabled)

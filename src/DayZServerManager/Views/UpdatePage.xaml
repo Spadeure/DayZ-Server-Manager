@@ -10,7 +10,7 @@
 
         <StackPanel Grid.Row="0">
             <TextBlock Text="MISES À JOUR" Style="{StaticResource PageTitle}" />
-            <TextBlock Text="Garde DayZ Server Manager à jour en un clic." FontSize="14"
+            <TextBlock Text="Garde Stryxhost Manager à jour en un clic." FontSize="14"
                        Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" />
         </StackPanel>
 
