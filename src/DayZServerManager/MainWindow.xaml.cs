@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -25,9 +27,6 @@ public partial class MainWindow : Window
         VersionText.Text = v is null ? "Version inconnue" : $"Version {v.Major}.{v.Minor}.{v.Build}";
         BuildText.Text = v is { Major: 0 } ? "Version de test" : "Version officielle";
 
-        // Fenêtre sans bordure Windows : on corrige le débordement quand elle est agrandie.
-        StateChanged += (_, _) =>
-            RootBorder.Padding = WindowState == WindowState.Maximized ? new Thickness(7) : new Thickness(0);
 
         _installPage = new InstallPage();
         _updatePage = new UpdatePage();
@@ -75,6 +74,79 @@ public partial class MainWindow : Window
         PageHost.RenderTransform = move;
         move.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(12, 0, duration) { EasingFunction = ease });
     }
+
+    // ===== Plein écran =====
+    // Une fenêtre sans bordure Windows recouvre la barre des tâches quand on l'agrandit.
+    // On indique donc à Windows la zone de travail exacte de l'écran (sans la barre des tâches).
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var handle = new WindowInteropHelper(this).Handle;
+        HwndSource.FromHwnd(handle)?.AddHook(WindowProc);
+    }
+
+    private static IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        const int WM_GETMINMAXINFO = 0x0024;
+        if (msg == WM_GETMINMAXINFO) FitToWorkArea(hwnd, lParam);
+        return IntPtr.Zero;
+    }
+
+    private static void FitToWorkArea(IntPtr hwnd, IntPtr lParam)
+    {
+        const int MONITOR_DEFAULTTONEAREST = 2;
+        var monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        if (monitor == IntPtr.Zero) return;
+
+        var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (!GetMonitorInfo(monitor, ref info)) return;
+
+        var minMax = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+        minMax.ptMaxPosition.X = info.rcWork.Left - info.rcMonitor.Left;
+        minMax.ptMaxPosition.Y = info.rcWork.Top - info.rcMonitor.Top;
+        minMax.ptMaxSize.X = info.rcWork.Right - info.rcWork.Left;
+        minMax.ptMaxSize.Y = info.rcWork.Bottom - info.rcWork.Top;
+        Marshal.StructureToPtr(minMax, lParam, true);
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left, Top, Right, Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved;
+        public POINT ptMaxSize;
+        public POINT ptMaxPosition;
+        public POINT ptMinTrackSize;
+        public POINT ptMaxTrackSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public int dwFlags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int dwFlags);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
     private void OnUpdateAvailabilityChanged(bool available)
     {

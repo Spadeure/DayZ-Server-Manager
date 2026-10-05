@@ -12,7 +12,7 @@ public record ReleaseInfo(Version Version, string Notes, DateTime Published, str
 /// <summary>Vérifie les nouvelles versions sur GitHub et met l'application à jour.</summary>
 public static class UpdateService
 {
-    private const string LatestReleaseUrl = "https://api.github.com/repos/Spadeure/DayZ-Server-Manager/releases/latest";
+    private const string ReleasesUrl = "https://api.github.com/repos/Spadeure/DayZ-Server-Manager/releases?per_page=50";
     private const string AssetName = "DayZServerManager.exe";
 
     private static readonly HttpClient Http = CreateClient();
@@ -33,17 +33,27 @@ public static class UpdateService
         }
     }
 
-    /// <summary>Dernière version publiée, ou null s'il n'y en a pas encore.</summary>
-    public static async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default)
+    /// <summary>Toutes les versions publiées, de la plus récente à la plus ancienne.</summary>
+    public static async Task<List<ReleaseInfo>> GetReleasesAsync(CancellationToken ct = default)
     {
-        using var response = await Http.GetAsync(LatestReleaseUrl, ct);
-        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        using var response = await Http.GetAsync(ReleasesUrl, ct);
+        if (response.StatusCode == HttpStatusCode.NotFound) return new List<ReleaseInfo>();
         response.EnsureSuccessStatusCode();
 
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
-        var root = doc.RootElement;
+        var releases = new List<ReleaseInfo>();
+        foreach (var element in doc.RootElement.EnumerateArray())
+        {
+            if (IsTrue(element, "draft") || IsTrue(element, "prerelease")) continue;
+            var release = ParseRelease(element);
+            if (release != null) releases.Add(release);
+        }
+        return releases.OrderByDescending(r => r.Version).ToList();
+    }
 
-        var tag = root.GetProperty("tag_name").GetString() ?? "";
+    private static ReleaseInfo? ParseRelease(JsonElement root)
+    {
+        var tag = root.TryGetProperty("tag_name", out var tagValue) ? tagValue.GetString() ?? "" : "";
         if (!Version.TryParse(tag.TrimStart('v', 'V'), out var parsed)) return null;
         var version = new Version(parsed.Major, parsed.Minor, Math.Max(parsed.Build, 0));
 
@@ -54,18 +64,23 @@ public static class UpdateService
             ? d.ToLocalTime()
             : DateTime.Now;
 
-        foreach (var asset in root.GetProperty("assets").EnumerateArray())
+        string url = "";
+        long size = 0;
+        if (root.TryGetProperty("assets", out var assets))
         {
-            if (!string.Equals(asset.GetProperty("name").GetString(), AssetName, StringComparison.OrdinalIgnoreCase))
-                continue;
-            return new ReleaseInfo(version, notes, published,
-                asset.GetProperty("browser_download_url").GetString() ?? "",
-                asset.GetProperty("size").GetInt64());
+            foreach (var asset in assets.EnumerateArray())
+            {
+                if (!string.Equals(asset.GetProperty("name").GetString(), AssetName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                url = asset.GetProperty("browser_download_url").GetString() ?? "";
+                size = asset.GetProperty("size").GetInt64();
+            }
         }
-
-        // Version publiée mais l'exe n'est pas encore joint.
-        return null;
+        return new ReleaseInfo(version, notes, published, url, size);
     }
+
+    private static bool IsTrue(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
 
     /// <summary>Télécharge la nouvelle version, remplace l'exe actuel et lance la nouvelle version.</summary>
     public static async Task DownloadAndInstallAsync(ReleaseInfo release, IProgress<double> progress, CancellationToken ct)

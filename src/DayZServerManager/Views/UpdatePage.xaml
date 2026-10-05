@@ -50,17 +50,12 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <DockPanel Grid.Row="0">
-                    <TextBlock x:Name="DateText" DockPanel.Dock="Right" Style="{StaticResource MutedText}"
-                               VerticalAlignment="Center" />
-                    <TextBlock Text="NOTES DE VERSION" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
-                </DockPanel>
+                <TextBlock Grid.Row="0" Text="PATCH NOTES" Style="{StaticResource SectionTitle}" />
 
-                <Border Grid.Row="1" Background="{StaticResource ConsoleBrush}" CornerRadius="10" Padding="16"
+                <Border Grid.Row="1" Background="{StaticResource ConsoleBrush}" CornerRadius="10" Padding="20,16"
                         Margin="0,16,0,16">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <TextBlock x:Name="NotesText" FontSize="13" LineHeight="22" TextWrapping="Wrap"
-                                   Foreground="{StaticResource ConsoleTextBrush}" />
+                        <StackPanel x:Name="NotesPanel" />
                     </ScrollViewer>
                 </Border>
 
