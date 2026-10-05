@@ -20,6 +20,9 @@ public sealed class ServerManager
 
     public DateTime? StartedAt { get; private set; }
 
+    /// <summary>Le processus du serveur (pour lire son utilisation du processeur et de la mémoire).</summary>
+    public Process? ServerProcess => _process;
+
     public bool IsRunning
     {
         get

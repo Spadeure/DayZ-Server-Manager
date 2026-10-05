@@ -5,6 +5,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -67,8 +68,60 @@
             </Border>
         </Grid>
 
+        <!-- ===== Ressources ===== -->
+        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,20" Padding="20,16">
+            <StackPanel>
+                <TextBlock Text="RESSOURCES" Style="{StaticResource SectionTitle}" />
+                <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <DockPanel>
+                            <TextBlock x:Name="CpuValue" DockPanel.Dock="Right" Text="—" FontFamily="Segoe UI" FontWeight="Bold"
+                                       FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Processeur" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                <TextBlock Text="utilisé par le serveur" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <ProgressBar x:Name="CpuBar" Style="{StaticResource NeonProgress}" Height="8" Margin="0,10,0,0" />
+                        <TextBlock x:Name="CpuInfo" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <DockPanel>
+                            <TextBlock x:Name="RamValue" DockPanel.Dock="Right" Text="—" FontFamily="Segoe UI" FontWeight="Bold"
+                                       FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Mémoire" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                <TextBlock Text="utilisée par le serveur" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <ProgressBar x:Name="RamBar" Style="{StaticResource NeonProgress}" Height="8" Margin="0,10,0,0" />
+                        <TextBlock x:Name="RamInfo" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <DockPanel>
+                            <TextBlock x:Name="DiskValue" DockPanel.Dock="Right" Text="—" FontFamily="Segoe UI" FontWeight="Bold"
+                                       FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Disque" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
+                                <TextBlock Text="espace libre" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <ProgressBar x:Name="DiskBar" Style="{StaticResource NeonProgress}" Height="8" Margin="0,10,0,0" />
+                        <TextBlock x:Name="DiskInfo" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+                    </StackPanel>
+                </Grid>
+            </StackPanel>
+        </Border>
+
         <!-- ===== Journal ===== -->
-        <Border Grid.Row="2" Style="{StaticResource Card}">
+        <Border Grid.Row="3" Style="{StaticResource Card}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
