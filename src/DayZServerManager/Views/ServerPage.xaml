@@ -110,7 +110,7 @@
                                        FontSize="20" Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="Disque" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" />
-                                <TextBlock Text="espace libre" FontSize="11" Foreground="{StaticResource MutedBrush}" />
+                                <TextBlock Text="utilisé par le serveur" FontSize="11" Foreground="{StaticResource MutedBrush}" />
                             </StackPanel>
                         </DockPanel>
                         <ProgressBar x:Name="DiskBar" Style="{StaticResource NeonProgress}" Height="8" Margin="0,10,0,0" />

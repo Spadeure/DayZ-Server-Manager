@@ -144,78 +144,122 @@ public partial class ServerPage : UserControl
         UptimeText.Text = $"En ligne depuis {(int)up.TotalHours} h {up.Minutes:00} min {up.Seconds:00} s";
     }
 
-    // ===== Ressources =====
+    // ===== Ressources (uniquement ce que le serveur utilise) =====
+
+    private long _serverFolderBytes = -1;
+    private DateTime _folderMeasuredAt;
+    private bool _measuringFolder;
 
     private void UpdateResources()
     {
-        // Processeur : celui du serveur en grand, celui de tout le PC dans la barre.
-        var pcCpu = SystemMetrics.GetCpuUsage();
-        CpuBar.Value = pcCpu ?? 0;
-        CpuInfo.Text = pcCpu.HasValue ? $"Total du PC : {pcCpu:0} %" : "Total du PC : …";
-
-        string serverCpu = "—", serverRam = "—";
         var process = ServerManager.Instance.ServerProcess;
-        if (process != null && ServerManager.Instance.IsRunning)
+        bool running = process != null && ServerManager.Instance.IsRunning;
+
+        double cpuPercent = 0;
+        long ramBytes = 0;
+        bool cpuReady = false;
+
+        if (running)
         {
             try
             {
-                process.Refresh();
+                process!.Refresh();
                 var now = DateTime.UtcNow;
                 var cpuTime = process.TotalProcessorTime;
                 if (_lastPid == process.Id && _lastSample != default)
                 {
                     var elapsed = (now - _lastSample).TotalMilliseconds * Environment.ProcessorCount;
-                    var percent = elapsed > 0 ? (cpuTime - _lastCpuTime).TotalMilliseconds / elapsed * 100 : 0;
-                    serverCpu = $"{Math.Clamp(percent, 0, 100):0} %";
-                }
-                else
-                {
-                    serverCpu = "…";
+                    cpuPercent = elapsed > 0 ? Math.Clamp((cpuTime - _lastCpuTime).TotalMilliseconds / elapsed * 100, 0, 100) : 0;
+                    cpuReady = true;
                 }
                 _lastPid = process.Id;
                 _lastCpuTime = cpuTime;
                 _lastSample = now;
-                serverRam = FormatBytes(process.WorkingSet64);
+                ramBytes = process.WorkingSet64;
             }
             catch
             {
-                // Le serveur vient de s'arrêter.
+                running = false; // le serveur vient de s'arrêter
             }
         }
-        else
-        {
-            _lastSample = default;
-        }
-        CpuValue.Text = serverCpu;
-        RamValue.Text = serverRam;
+        if (!running) _lastSample = default;
 
-        // Mémoire de tout le PC.
+        // Processeur utilisé par le serveur.
+        CpuValue.Text = !running ? "—" : cpuReady ? $"{cpuPercent:0} %" : "…";
+        CpuBar.Value = running ? cpuPercent : 0;
+        CpuInfo.Text = running
+            ? $"Sur les {Environment.ProcessorCount} cœurs du processeur"
+            : "Serveur hors ligne";
+
+        // Mémoire utilisée par le serveur, comparée à la RAM du PC.
         var memory = SystemMetrics.GetMemory();
-        if (memory is { Total: > 0 } mem)
-        {
-            var used = mem.Total - mem.Available;
-            var percent = used * 100.0 / mem.Total;
-            RamBar.Value = percent;
-            RamInfo.Text = $"PC : {FormatBytes((long)used)} sur {FormatBytes((long)mem.Total)} ({percent:0} %)";
-        }
+        ulong totalRam = memory?.Total ?? 0;
+        RamValue.Text = running ? FormatBytes(ramBytes) : "—";
+        RamBar.Value = running && totalRam > 0 ? ramBytes * 100.0 / totalRam : 0;
+        RamInfo.Text = !running
+            ? "Serveur hors ligne"
+            : totalRam > 0
+                ? $"{ramBytes * 100.0 / totalRam:0} % des {FormatBytes((long)totalRam)} de RAM du PC"
+                : "";
 
-        // Disque où est installé le serveur.
-        try
-        {
-            var folder = AppSettings.Current.ServerFolder;
-            if (string.IsNullOrWhiteSpace(folder)) throw new InvalidOperationException();
-            var drive = new DriveInfo(Path.GetPathRoot(folder)!);
-            var usedPercent = (drive.TotalSize - drive.AvailableFreeSpace) * 100.0 / drive.TotalSize;
-            DiskValue.Text = FormatBytes(drive.AvailableFreeSpace);
-            DiskBar.Value = usedPercent;
-            DiskInfo.Text = $"{drive.Name} · {usedPercent:0} % utilisé sur {FormatBytes(drive.TotalSize)}";
-        }
-        catch
+        UpdateDisk();
+    }
+
+    /// <summary>Place occupée par le dossier du serveur (mesurée en arrière-plan toutes les 5 minutes).</summary>
+    private void UpdateDisk()
+    {
+        var mainFolder = AppSettings.Current.ServerFolder;
+        if (!DependencyChecker.IsServerInstalled(mainFolder))
         {
             DiskValue.Text = "—";
             DiskBar.Value = 0;
-            DiskInfo.Text = "Aucun dossier d'installation choisi.";
+            DiskInfo.Text = "Serveur non installé";
+            return;
         }
+
+        DriveInfo? drive = null;
+        try { drive = new DriveInfo(Path.GetPathRoot(mainFolder)!); } catch { /* lecteur illisible */ }
+
+        if (_serverFolderBytes >= 0)
+        {
+            DiskValue.Text = FormatBytes(_serverFolderBytes);
+            DiskBar.Value = drive != null && drive.TotalSize > 0 ? _serverFolderBytes * 100.0 / drive.TotalSize : 0;
+            DiskInfo.Text = drive != null
+                ? $"Dossier du serveur · {FormatBytes(drive.AvailableFreeSpace)} libres sur {drive.Name}"
+                : "Dossier du serveur";
+        }
+        else
+        {
+            DiskValue.Text = "…";
+            DiskInfo.Text = "Calcul de la taille du serveur…";
+        }
+
+        if (_measuringFolder || (_serverFolderBytes >= 0 && DateTime.UtcNow - _folderMeasuredAt < TimeSpan.FromMinutes(5)))
+            return;
+
+        _measuringFolder = true;
+        var serverFolder = ServerManager.ServerFolder;
+        Task.Run(() => FolderSize(serverFolder)).ContinueWith(task =>
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (task.Status == TaskStatus.RanToCompletion) _serverFolderBytes = task.Result;
+                _folderMeasuredAt = DateTime.UtcNow;
+                _measuringFolder = false;
+                UpdateDisk();
+            });
+        });
+    }
+
+    private static long FolderSize(string folder)
+    {
+        long total = 0;
+        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
+        foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", options))
+        {
+            try { total += file.Length; } catch { /* fichier en cours d'utilisation */ }
+        }
+        return total;
     }
 
     private static string FormatBytes(long bytes) =>

@@ -1,1 +1,1 @@
-• Onglet « Serveur » : nouvelle section « Ressources » avec le processeur et la mémoire utilisés par le serveur, l'utilisation totale du PC et l'espace disque libre, mis à jour en direct.
+• Ressources : les chiffres et les barres montrent maintenant uniquement ce que le serveur utilise (processeur, mémoire et taille de son dossier sur le disque).
