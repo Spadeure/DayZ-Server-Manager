@@ -79,6 +79,8 @@
                                          IsChecked="True" Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Serveur" Tag="server"
                                          Checked="Nav_Checked" />
+                            <RadioButton Style="{StaticResource NavButton}" Content="Joueurs" Tag="players"
+                                         Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Configuration" Tag="config"
                                          Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Mods" Tag="mods"

@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly ModsPage _modsPage;
     private readonly BackupsPage _backupsPage;
     private readonly LogsPage _logsPage;
+    private readonly PlayersPage _playersPage;
 
     public MainWindow()
     {
@@ -38,6 +39,7 @@ public partial class MainWindow : Window
         _modsPage = new ModsPage();
         _backupsPage = new BackupsPage();
         _logsPage = new LogsPage();
+        _playersPage = new PlayersPage();
         _updatePage.UpdateAvailabilityChanged += OnUpdateAvailabilityChanged;
         ShowPage("install");
 
@@ -60,6 +62,7 @@ public partial class MainWindow : Window
             "mods" => _modsPage,
             "firewall" => _firewallPage,
             "backups" => _backupsPage,
+            "players" => _playersPage,
             "logs" => _logsPage,
             "updates" => _updatePage,
             _ => _installPage,
@@ -72,6 +75,7 @@ public partial class MainWindow : Window
         if (tag == "mods") _modsPage.Refresh();
         if (tag == "backups") _backupsPage.Refresh();
         if (tag == "logs") _logsPage.Refresh();
+        if (tag == "players") _playersPage.Refresh();
 
         // Petite animation d'apparition de la page.
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };

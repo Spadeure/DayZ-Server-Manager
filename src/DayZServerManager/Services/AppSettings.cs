@@ -57,6 +57,18 @@ public class AppSettings
 
     public int LogRetentionDays { get; set; } = 14;
 
+    /// <summary>Mot de passe RCon de BattlEye (BattlEye renomme son fichier pendant que le serveur tourne).</summary>
+    public string RconPassword { get; set; } = "";
+
+    /// <summary>Prévenir les joueurs en jeu avant un redémarrage programmé.</summary>
+    public bool WarnBeforeRestart { get; set; } = true;
+
+    public string DiscordWebhook { get; set; } = "";
+    public bool DiscordEnabled { get; set; }
+
+    /// <summary>Noms associés aux SteamID de la whitelist et de la file prioritaire.</summary>
+    public Dictionary<string, string> SteamNames { get; set; } = new();
+
     /// <summary>Mods du Workshop installés sur le serveur, dans l'ordre de chargement.</summary>
     public List<ModEntry> Mods { get; set; } = new();
 

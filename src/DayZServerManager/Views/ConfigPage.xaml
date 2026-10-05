@@ -16,6 +16,30 @@
                 </StackPanel>
             </Border>
 
+            <!-- ===== Discord (toujours disponible) ===== -->
+            <Border Style="{StaticResource Card}" Margin="0,24,0,0">
+                <StackPanel>
+                    <TextBlock Text="ALERTES DISCORD" Style="{StaticResource SectionTitle}" />
+                    <TextBlock Style="{StaticResource MutedText}" FontSize="13" Margin="0,10,0,0"
+                               Text="Reçois un message dans un salon Discord quand le serveur démarre, s'arrête, plante ou redémarre." />
+                    <CheckBox x:Name="DiscordToggle" Content="Activer les alertes Discord" Style="{StaticResource ToggleSwitch}"
+                              Margin="0,16,0,0" Click="Discord_Changed" />
+                    <TextBlock Text="URL du webhook Discord (paramètres du salon → Intégrations → Webhooks)"
+                               Style="{StaticResource MutedText}" Margin="0,14,0,6" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="WebhookBox" Style="{StaticResource FieldBox}" FontSize="12" LostFocus="Discord_Changed" />
+                        <Button Grid.Column="1" Content="Tester" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"
+                                Click="TestDiscord_Click" />
+                    </Grid>
+                    <TextBlock x:Name="DiscordStatus" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,10,0,0" />
+                </StackPanel>
+            </Border>
+
             <StackPanel x:Name="EditorPanel">
                 <!-- ===== Général ===== -->
                 <Border Style="{StaticResource Card}" Margin="0,24,0,0">

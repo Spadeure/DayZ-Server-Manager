@@ -33,6 +33,8 @@
                     </StackPanel>
                     <TextBlock x:Name="UptimeText" Style="{StaticResource MutedText}" FontSize="13" Margin="0,8,0,0" />
                     <TextBlock x:Name="InfoText" Style="{StaticResource MutedText}" FontSize="13" Margin="0,4,0,0" />
+                    <TextBlock x:Name="PlayersText" FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0"
+                               Foreground="{StaticResource CyanBrush}" />
 
                     <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
                         <Button x:Name="StartButton" Content="Démarrer" Style="{StaticResource PrimaryButton}"
@@ -61,6 +63,8 @@
                         <TextBlock Text="heures" Foreground="{StaticResource MutedBrush}" FontSize="13"
                                    VerticalAlignment="Center" />
                     </StackPanel>
+                    <CheckBox x:Name="WarnToggle" Content="Prévenir les joueurs 10, 5 et 1 min avant"
+                              Style="{StaticResource ToggleSwitch}" Margin="0,14,0,0" Click="Options_Changed" />
                     <TextBlock Text="Les redémarrages automatiques fonctionnent tant que l'application est ouverte."
                                Style="{StaticResource MutedText}" Margin="0,12,0,0" />
                 </StackPanel>

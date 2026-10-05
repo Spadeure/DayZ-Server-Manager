@@ -22,10 +22,11 @@ public partial class ConfigPage : UserControl
     public ConfigPage()
     {
         InitializeComponent();
+        DiscordToggle.IsChecked = AppSettings.Current.DiscordEnabled;
+        WebhookBox.Text = AppSettings.Current.DiscordWebhook;
     }
 
     private static string ConfigPath => Path.Combine(ServerManager.ServerFolder, "serverDZ.cfg");
-    private static string BattlEyeConfigPath => Path.Combine(ServerManager.ServerFolder, "battleye", "BEServer_x64.cfg");
 
     private RadioButton[] MapChips => [ChernarusChip, LivoniaChip, SakhalChip];
 
@@ -64,7 +65,7 @@ public partial class ConfigPage : UserControl
         PersistentTimeToggle.IsChecked = _config.Get("serverTimePersistent") == "1";
         DayAccelBox.Text = _config.Get("serverTimeAcceleration") ?? "1";
         NightAccelBox.Text = _config.Get("serverNightTimeAcceleration") ?? "1";
-        RconPasswordBox.Text = ReadRconPassword();
+        RconPasswordBox.Text = BattlEyeConfig.ReadPassword();
 
         // Carte : on ne propose que celles présentes dans le dossier mpmissions.
         var template = _config.Get("template") ?? Maps[0].Template;
@@ -124,7 +125,10 @@ public partial class ConfigPage : UserControl
                 if (MapChips[i].IsChecked == true) _config.SetString("template", Maps[i].Template);
 
             _config.Save();
-            WriteBattlEyeConfig(RconPasswordBox.Text.Trim());
+            var rconPassword = RconPasswordBox.Text.Trim();
+            AppSettings.Current.RconPassword = rconPassword;
+            AppSettings.Current.Save();
+            BattlEyeConfig.Write(rconPassword, AppSettings.Current.RconPort);
 
             ShowStatus(ServerManager.Instance.IsRunning
                 ? "Enregistré ! Redémarre le serveur pour appliquer les changements."
@@ -142,34 +146,41 @@ public partial class ConfigPage : UserControl
         Process.Start(new ProcessStartInfo("notepad.exe", $"\"{ConfigPath}\"") { UseShellExecute = true });
     }
 
-    // ===== BattlEye (RCon) =====
+    // ===== Discord =====
 
-    private static string ReadRconPassword()
+    private void Discord_Changed(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            if (!File.Exists(BattlEyeConfigPath)) return "";
-            foreach (var line in File.ReadAllLines(BattlEyeConfigPath))
-                if (line.TrimStart().StartsWith("RConPassword", StringComparison.OrdinalIgnoreCase))
-                    return line.Trim()["RConPassword".Length..].Trim();
-        }
-        catch
-        {
-            // Fichier illisible : champ vide.
-        }
-        return "";
+        AppSettings.Current.DiscordEnabled = DiscordToggle.IsChecked == true;
+        AppSettings.Current.DiscordWebhook = WebhookBox.Text.Trim();
+        AppSettings.Current.Save();
     }
 
-    private static void WriteBattlEyeConfig(string password)
+    private async void TestDiscord_Click(object sender, RoutedEventArgs e)
     {
-        if (password.Length == 0) return;
-        Directory.CreateDirectory(Path.GetDirectoryName(BattlEyeConfigPath)!);
-        File.WriteAllLines(BattlEyeConfigPath, new[]
+        Discord_Changed(sender, e);
+        var webhook = WebhookBox.Text.Trim();
+        if (!webhook.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            $"RConPassword {password}",
-            $"RConPort {AppSettings.Current.RconPort}",
-            "RestrictRCon 0",
-        });
+            ShowDiscordStatus("Colle d'abord l'URL du webhook (elle commence par https://discord.com/api/webhooks/…).", "WarnBrush");
+            return;
+        }
+
+        ShowDiscordStatus("Envoi du message de test…", "MutedBrush");
+        try
+        {
+            await DiscordNotifier.SendAsync(webhook, "✅ Test réussi", "Les alertes de Stryxhost Manager arriveront ici.", DiscordNotifier.Purple);
+            ShowDiscordStatus("Message envoyé ! Regarde ton salon Discord.", "CyanBrush");
+        }
+        catch (Exception ex)
+        {
+            ShowDiscordStatus($"Échec : {ex.Message}", "WarnBrush");
+        }
+    }
+
+    private void ShowDiscordStatus(string message, string brushKey)
+    {
+        DiscordStatus.Text = message;
+        DiscordStatus.Foreground = (Brush)Application.Current.FindResource(brushKey);
     }
 
     // ===== Outils =====

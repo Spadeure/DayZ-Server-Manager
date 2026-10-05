@@ -11,6 +11,8 @@ public sealed class ServerManager
     private Process? _process;
     private bool _stopRequested;
     private bool _restarting;
+    private readonly HashSet<int> _warningsSent = new();
+    private static readonly int[] WarningMinutes = [1, 5, 10];
     private readonly System.Threading.Timer _scheduleTimer;
 
     private ServerManager()
@@ -116,7 +118,17 @@ public sealed class ServerManager
             }
         }
 
-        return Start();
+        // BattlEye renomme son fichier pendant que le serveur tourne : on le réécrit avant chaque démarrage.
+        try { BattlEyeConfig.Write(settings.RconPassword, settings.RconPort); }
+        catch { /* le serveur démarrera avec l'ancien fichier */ }
+
+        var started = Start();
+        if (started)
+        {
+            _warningsSent.Clear();
+            _ = DiscordNotifier.NotifyAsync("🟢 Serveur démarré", "Le serveur est en cours de démarrage.", DiscordNotifier.Green);
+        }
+        return started;
     }
 
     private bool Start()
@@ -208,14 +220,23 @@ public sealed class ServerManager
         StartedAt = null;
         StatusChanged?.Invoke();
 
+        RconService.Instance.Disconnect();
+
         if (_stopRequested)
         {
             Log?.Invoke("Serveur arrêté.");
+            if (!_restarting)
+                _ = DiscordNotifier.NotifyAsync("🔴 Serveur arrêté", "Le serveur a été arrêté.", DiscordNotifier.Red);
             return;
         }
 
         Log?.Invoke($"Le serveur s'est arrêté de lui-même (code {code}).");
-        if (!AppSettings.Current.AutoRestart || _restarting) return;
+        bool autoRestart = AppSettings.Current.AutoRestart && !_restarting;
+        _ = DiscordNotifier.NotifyAsync("💥 Crash du serveur",
+            autoRestart ? $"Le serveur s'est arrêté de lui-même (code {code}). Redémarrage automatique dans 10 secondes."
+                        : $"Le serveur s'est arrêté de lui-même (code {code}).",
+            DiscordNotifier.Orange);
+        if (!autoRestart) return;
 
         Log?.Invoke("Redémarrage automatique dans 10 secondes…");
         await Task.Delay(10000);
@@ -226,9 +247,41 @@ public sealed class ServerManager
     {
         var s = AppSettings.Current;
         if (!s.ScheduledRestart || s.RestartHours <= 0 || !IsRunning || _restarting || StartedAt == null) return;
-        if (DateTime.Now - StartedAt.Value < TimeSpan.FromHours(s.RestartHours)) return;
+
+        var remaining = StartedAt.Value.AddHours(s.RestartHours) - DateTime.Now;
+
+        // Avertissements en jeu à 10, 5 et 1 minute(s) du redémarrage.
+        if (s.WarnBeforeRestart)
+        {
+            foreach (var minutes in WarningMinutes)
+            {
+                if (remaining > TimeSpan.FromMinutes(minutes) || remaining <= TimeSpan.Zero || _warningsSent.Contains(minutes)) continue;
+                // On marque aussi les avertissements plus longs, pour ne pas les envoyer en retard.
+                foreach (var longer in WarningMinutes.Where(m => m >= minutes)) _warningsSent.Add(longer);
+                var label = minutes == 1 ? "1 minute" : $"{minutes} minutes";
+                _ = WarnPlayersAsync($"Redémarrage du serveur dans {label} / Server restart in {minutes} min");
+                break;
+            }
+        }
+
+        if (remaining > TimeSpan.Zero) return;
 
         Log?.Invoke($"Redémarrage programmé (toutes les {s.RestartHours} h).");
+        _ = DiscordNotifier.NotifyAsync("🔄 Redémarrage programmé",
+            $"Redémarrage automatique (toutes les {s.RestartHours} h).", DiscordNotifier.Purple);
         _ = RestartAsync();
+    }
+
+    private async Task WarnPlayersAsync(string message)
+    {
+        try
+        {
+            await RconService.Instance.SayAllAsync(message);
+            Log?.Invoke($"Message envoyé aux joueurs : {message}");
+        }
+        catch (Exception ex)
+        {
+            Log?.Invoke($"Avertissement impossible (RCon) : {ex.Message}");
+        }
     }
 }

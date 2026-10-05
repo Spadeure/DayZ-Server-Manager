@@ -24,6 +24,7 @@ public partial class ServerPage : UserControl
         var settings = AppSettings.Current;
         AutoRestartToggle.IsChecked = settings.AutoRestart;
         ScheduledToggle.IsChecked = settings.ScheduledRestart;
+        WarnToggle.IsChecked = settings.WarnBeforeRestart;
         HoursBox.Text = settings.RestartHours.ToString();
 
         var manager = ServerManager.Instance;
@@ -34,12 +35,14 @@ public partial class ServerPage : UserControl
         {
             UpdateUptime();
             if (++_ticks % 2 == 0) UpdateResources();
+            if (_ticks % 10 == 0) _ = UpdatePlayersAsync();
         };
         _clock.Start();
 
         manager.AttachToRunning();
         UpdateStatus();
         UpdateResources();
+        _ = UpdatePlayersAsync();
     }
 
     /// <summary>Remet à jour l'affichage (appelé à chaque ouverture de l'onglet).</summary>
@@ -100,6 +103,7 @@ public partial class ServerPage : UserControl
         var settings = AppSettings.Current;
         settings.AutoRestart = AutoRestartToggle.IsChecked == true;
         settings.ScheduledRestart = ScheduledToggle.IsChecked == true;
+        settings.WarnBeforeRestart = WarnToggle.IsChecked == true;
         if (int.TryParse(HoursBox.Text.Trim(), out var hours) && hours >= 1 && hours <= 48)
             settings.RestartHours = hours;
         else
@@ -150,6 +154,44 @@ public partial class ServerPage : UserControl
         }
         var up = DateTime.Now - started.Value;
         UptimeText.Text = $"En ligne depuis {(int)up.TotalHours} h {up.Minutes:00} min {up.Seconds:00} s";
+    }
+
+    // ===== Joueurs et FPS =====
+
+    private async Task UpdatePlayersAsync()
+    {
+        if (!ServerManager.Instance.IsRunning)
+        {
+            PlayersText.Text = "";
+            return;
+        }
+
+        var info = await ServerQuery.QueryAsync(AppSettings.Current.QueryPort);
+        var fps = await Task.Run(() => ReadServerFps());
+        var players = info != null ? $"Joueurs : {info.Players} / {info.MaxPlayers}" : "Joueurs : serveur en cours de démarrage…";
+        PlayersText.Text = fps.HasValue ? $"{players} · FPS : {fps:0}" : players;
+    }
+
+    /// <summary>Dernier « Average server FPS » écrit dans le journal RPT, s'il y en a un.</summary>
+    private static double? ReadServerFps()
+    {
+        try
+        {
+            var file = LogService.GetFiles(LogKind.Rpt).FirstOrDefault();
+            if (file == null) return null;
+            using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            stream.Seek(Math.Max(0, stream.Length - 256 * 1024), SeekOrigin.Begin);
+            using var reader = new StreamReader(stream);
+            var text = reader.ReadToEnd();
+            var matches = System.Text.RegularExpressions.Regex.Matches(text, @"Average server FPS:\s*([\d.]+)");
+            if (matches.Count == 0) return null;
+            return double.TryParse(matches[^1].Groups[1].Value, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var fps) ? fps : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ===== Ressources (uniquement ce que le serveur utilise) =====
