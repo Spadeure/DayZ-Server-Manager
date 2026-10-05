@@ -30,8 +30,7 @@
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <TextBlock Text="Garder les" Foreground="{StaticResource MutedBrush}" FontSize="13"
                                    VerticalAlignment="Center" />
-                        <TextBox x:Name="KeepBox" Style="{StaticResource FieldBox}" Width="64" Height="36"
-                                 TextAlignment="Center" MaxLength="3" Margin="10,0" FontFamily="Segoe UI"
+                        <TextBox x:Name="KeepBox" Style="{StaticResource NumberBox}" Width="64" MaxLength="3" Margin="10,0"
                                  LostFocus="Options_Changed" />
                         <TextBlock Text="dernières sauvegardes automatiques" Foreground="{StaticResource MutedBrush}"
                                    FontSize="13" VerticalAlignment="Center" />

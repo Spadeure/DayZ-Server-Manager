@@ -51,8 +51,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Nombre de joueurs maximum" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
-                                <TextBox x:Name="MaxPlayersBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI"
-                                         FontSize="14" MaxLength="3" />
+                                <TextBox x:Name="MaxPlayersBox" Style="{StaticResource NumberBox}" MaxLength="3" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Mot de passe RCon (administration à distance)" Style="{StaticResource MutedText}"

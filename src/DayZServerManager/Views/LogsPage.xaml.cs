@@ -273,7 +273,7 @@ public partial class LogsPage : UserControl
     {
         var settings = AppSettings.Current;
         settings.AutoCleanLogs = CleanToggle.IsChecked == true;
-        if (int.TryParse(DaysBox.Text.Trim(), out var days) && days >= 1 && days <= 365)
+        if (int.TryParse(DaysBox.Text.Trim(), out var days) && days >= 0 && days <= 365)
             settings.LogRetentionDays = days;
         else
             DaysBox.Text = settings.LogRetentionDays.ToString();
@@ -284,9 +284,12 @@ public partial class LogsPage : UserControl
     {
         CleanOptions_Changed(sender, e);
         var (count, bytes) = await Task.Run(() => LogService.CleanOldLogs());
+        var days = AppSettings.Current.LogRetentionDays;
         FileText.Text = count > 0
-            ? $"{count} vieux journal(aux) supprimé(s), {FormatSize(bytes)} libérés."
-            : $"Aucun journal de plus de {AppSettings.Current.LogRetentionDays} jours à supprimer.";
+            ? $"{count} journal(aux) supprimé(s), {FormatSize(bytes)} libérés."
+            : days == 0
+                ? "Aucun journal à supprimer (ceux utilisés par le serveur en ligne sont gardés)."
+                : $"Aucun journal de plus de {days} jours à supprimer.";
         if (_file != null && !File.Exists(_file)) LoadLatest();
     }
 

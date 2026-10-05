@@ -1,5 +1,7 @@
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 using DayZServerManager.Services;
 
@@ -11,6 +13,13 @@ public partial class App : Application
     {
         DispatcherUnhandledException += OnUnhandledError;
         UpdateService.CleanupOldVersion();
+
+        // Les champs numériques (style NumberBox) n'acceptent que des chiffres.
+        EventManager.RegisterClassHandler(typeof(TextBox), UIElement.PreviewTextInputEvent,
+            new TextCompositionEventHandler((sender, args) =>
+            {
+                if (sender is TextBox { Tag: "number" } && !args.Text.All(char.IsDigit)) args.Handled = true;
+            }));
         base.OnStartup(e);
     }
 

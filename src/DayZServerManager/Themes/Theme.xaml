@@ -239,6 +239,17 @@
         </Setter>
     </Style>
 
+    <!-- ===== Champ numérique (chiffres uniquement, centrés) ===== -->
+    <Style x:Key="NumberBox" TargetType="TextBox" BasedOn="{StaticResource FieldBox}">
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Height" Value="38" />
+        <Setter Property="Padding" Value="4,0" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="Tag" Value="number" />
+    </Style>
+
     <!-- ===== Champ mot de passe ===== -->
     <Style x:Key="FieldPassword" TargetType="PasswordBox">
         <Setter Property="Background" Value="{StaticResource InputBrush}" />

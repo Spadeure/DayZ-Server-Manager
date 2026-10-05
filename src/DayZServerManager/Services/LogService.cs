@@ -36,13 +36,15 @@ public static class LogService
         return new DirectoryInfo(folder).GetFiles(pattern).OrderByDescending(f => f.LastWriteTime).ToList();
     }
 
-    /// <summary>Supprime les journaux plus vieux que le nombre de jours choisi.</summary>
+    /// <summary>Supprime les journaux plus vieux que le nombre de jours choisi (0 = tous).</summary>
     public static (int Count, long Bytes) CleanOldLogs()
     {
         var folder = ServerManager.ProfilesFolder;
         if (string.IsNullOrWhiteSpace(AppSettings.Current.ServerFolder) || !Directory.Exists(folder)) return (0, 0);
 
-        var limit = DateTime.Now.AddDays(-Math.Max(1, AppSettings.Current.LogRetentionDays));
+        // 0 jour = tous les journaux (sauf ceux encore utilisés par le serveur).
+        var days = Math.Max(0, AppSettings.Current.LogRetentionDays);
+        var limit = days == 0 ? DateTime.MaxValue : DateTime.Now.AddDays(-days);
         int count = 0;
         long bytes = 0;
         foreach (var pattern in CleanPatterns)

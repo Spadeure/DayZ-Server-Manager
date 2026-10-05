@@ -93,9 +93,9 @@
                 <DockPanel Grid.Row="1" Margin="0,14,0,0">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <CheckBox x:Name="CleanToggle" Content="Supprimer les journaux de plus de"
+                                  ToolTip="Mets 0 pour supprimer tous les journaux"
                                   Style="{StaticResource ToggleSwitch}" FontSize="13" Click="CleanOptions_Changed" />
-                        <TextBox x:Name="DaysBox" Style="{StaticResource FieldBox}" Width="56" Height="34"
-                                 TextAlignment="Center" MaxLength="3" Margin="10,0,6,0" FontFamily="Segoe UI"
+                        <TextBox x:Name="DaysBox" ToolTip="0 = tous les journaux" Style="{StaticResource NumberBox}" Width="56" MaxLength="3" Margin="10,0,6,0"
                                  LostFocus="CleanOptions_Changed" />
                         <TextBlock Text="jours" Foreground="{StaticResource MutedBrush}" FontSize="13"
                                    VerticalAlignment="Center" />
