@@ -9,8 +9,12 @@ namespace DayZServerManager;
 
 public partial class App : Application
 {
+    /// <summary>Lancée par Windows à l'ouverture de session : démarrer réduite près de l'horloge.</summary>
+    public static bool StartMinimized { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        StartMinimized = e.Args.Any(arg => arg.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
         DispatcherUnhandledException += OnUnhandledError;
         UpdateService.CleanupOldVersion();
 

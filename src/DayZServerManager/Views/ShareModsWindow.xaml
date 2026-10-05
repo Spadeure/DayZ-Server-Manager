@@ -1,0 +1,27 @@
+<Window x:Class="DayZServerManager.Views.ShareModsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Liste des mods" Width="640" SizeToContent="Height"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource PanelBrush}" Foreground="{StaticResource TextBrush}"
+        FontFamily="Segoe UI">
+    <Border BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="28"
+            Background="{StaticResource PanelBrush}" MouseLeftButtonDown="Window_Drag">
+        <StackPanel>
+            <TextBlock Text="LISTE DES MODS POUR LES JOUEURS" Style="{StaticResource SectionTitle}" FontSize="18" />
+            <TextBlock Style="{StaticResource MutedText}" FontSize="13" Margin="0,8,0,14"
+                       Text="Copie ce texte et colle-le sur ton Discord : les joueurs sauront quels mods s'abonner pour rejoindre le serveur." />
+            <TextBox x:Name="ModsText" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True" Height="320"
+                     VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12" Padding="12"
+                     Background="{StaticResource ConsoleBrush}" Foreground="{StaticResource ConsoleTextBrush}"
+                     BorderThickness="0" SelectionBrush="{StaticResource AccentBrush}" />
+            <TextBlock x:Name="StatusText" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource CyanBrush}"
+                       Margin="0,10,0,0" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                <Button Content="Fermer" Style="{StaticResource SecondaryButton}" IsCancel="True" />
+                <Button Content="Copier" Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Click="Copy_Click" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

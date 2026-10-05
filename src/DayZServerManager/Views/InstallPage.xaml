@@ -79,7 +79,7 @@
 
                     <StackPanel Grid.Row="0">
                         <TextBlock Text="FICHIERS SERVEUR DAYZ" Style="{StaticResource SectionTitle}" />
-                        <TextBlock Text="Téléchargement via SteamCMD · App 223350"
+                        <TextBlock x:Name="AppInfoText" Text="Téléchargement via SteamCMD"
                                    Style="{StaticResource MutedText}" Margin="0,4,0,0" />
                     </StackPanel>
 

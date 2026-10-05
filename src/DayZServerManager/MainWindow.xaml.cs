@@ -21,6 +21,10 @@ public partial class MainWindow : Window
     private readonly BackupsPage _backupsPage;
     private readonly LogsPage _logsPage;
     private readonly PlayersPage _playersPage;
+    private readonly SettingsPage _settingsPage;
+    private readonly TrayIcon _tray;
+    private bool _exitRequested;
+    private bool _trayHintShown;
 
     public MainWindow()
     {
@@ -40,11 +44,32 @@ public partial class MainWindow : Window
         _backupsPage = new BackupsPage();
         _logsPage = new LogsPage();
         _playersPage = new PlayersPage();
+        _settingsPage = new SettingsPage();
+
+        // Icône près de l'horloge, et démarrage réduit quand Windows lance l'application.
+        _tray = new TrayIcon(ShowFromTray, ExitApplication);
+        Closing += OnClosing;
+        Closed += (_, _) => _tray.Dispose();
+        if (App.StartMinimized)
+        {
+            WindowState = WindowState.Minimized;
+            ShowInTaskbar = false;
+        }
         _updatePage.UpdateAvailabilityChanged += OnUpdateAvailabilityChanged;
         ShowPage("install");
 
-        // Vérifie les mises à jour au démarrage, sans bloquer l'application.
-        Loaded += async (_, _) => await _updatePage.CheckAsync();
+        Loaded += async (_, _) =>
+        {
+            if (App.StartMinimized) Hide();
+
+            if (AppSettings.Current.AutoStartServer &&
+                DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder) &&
+                !ServerManager.Instance.IsRunning)
+                await ServerManager.Instance.StartAsync();
+
+            // Vérifie les mises à jour de l'application, sans bloquer.
+            await _updatePage.CheckAsync();
+        };
     }
 
     private void Nav_Checked(object sender, RoutedEventArgs e)
@@ -63,6 +88,7 @@ public partial class MainWindow : Window
             "firewall" => _firewallPage,
             "backups" => _backupsPage,
             "players" => _playersPage,
+            "settings" => _settingsPage,
             "logs" => _logsPage,
             "updates" => _updatePage,
             _ => _installPage,
@@ -76,6 +102,7 @@ public partial class MainWindow : Window
         if (tag == "backups") _backupsPage.Refresh();
         if (tag == "logs") _logsPage.Refresh();
         if (tag == "players") _playersPage.Refresh();
+        if (tag == "settings") _settingsPage.Refresh();
 
         // Petite animation d'apparition de la page.
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
@@ -158,6 +185,34 @@ public partial class MainWindow : Window
 
     [DllImport("user32.dll")]
     private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    // ===== Zone de notification =====
+
+    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (_exitRequested || !AppSettings.Current.CloseToTray) return;
+        e.Cancel = true;
+        Hide();
+        if (_trayHintShown) return;
+        _trayHintShown = true;
+        _tray.ShowBalloon("Stryxhost Manager",
+            "L'application continue de surveiller ton serveur ici. Clic droit sur l'icône pour la quitter.");
+    }
+
+    private void ShowFromTray()
+    {
+        Show();
+        ShowInTaskbar = true;
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private void ExitApplication()
+    {
+        _exitRequested = true;
+        Close();
+        Application.Current.Shutdown();
+    }
 
     private void OnUpdateAvailabilityChanged(bool available)
     {

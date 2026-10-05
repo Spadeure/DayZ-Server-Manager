@@ -91,6 +91,8 @@
                                          Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Journaux" Tag="logs"
                                          Checked="Nav_Checked" />
+                            <RadioButton Style="{StaticResource NavButton}" Content="Paramètres" Tag="settings"
+                                         Checked="Nav_Checked" />
                             <RadioButton x:Name="UpdatesNav" Style="{StaticResource NavButton}" Content="Mises à jour"
                                          Tag="updates" Checked="Nav_Checked" />
                         </StackPanel>

@@ -91,6 +91,7 @@ public partial class ModsPage : UserControl
         InstalledScroll.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
         UpdateAllButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
         DetectButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
+        ShareButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ===== Actions =====
@@ -103,7 +104,40 @@ public partial class ModsPage : UserControl
             ShowStatus($"« {item.Title} » est déjà installé.", "MutedBrush");
             return;
         }
-        await DownloadAndInstallAsync([item.Id]);
+
+        // Mods requis (par exemple Community Framework) : on propose de les installer avant.
+        var ids = new List<string> { item.Id };
+        try
+        {
+            ShowStatus($"Recherche des mods requis par « {item.Title} »…", "MutedBrush");
+            var required = await WorkshopService.GetRequiredItemsAsync(item.Id);
+            var missing = required.Where(id => AppSettings.Current.Mods.All(m => m.Id != id)).ToList();
+            if (missing.Count > 0)
+            {
+                var details = await WorkshopService.GetDetailsAsync(missing);
+                foreach (var detail in details) _knownTitles[detail.Id] = detail.Title;
+                var names = missing.Select(id => _knownTitles.TryGetValue(id, out var title) ? title : id);
+
+                var answer = MessageBox.Show(Window.GetWindow(this)!,
+                    $"« {item.Title} » a besoin de ces mods pour fonctionner :\n\n• {string.Join("\n• ", names)}\n\n" +
+                    "Les installer aussi (ils seront chargés avant lui) ?\n\nOui : tout installer   Non : installer seulement ce mod",
+                    "Stryxhost Manager", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                if (answer == MessageBoxResult.Cancel) return;
+                if (answer == MessageBoxResult.Yes) ids.InsertRange(0, missing);
+            }
+        }
+        catch
+        {
+            // Page du Workshop injoignable : on installe au moins le mod demandé.
+            Log("Impossible de vérifier les mods requis, installation du mod seul.");
+        }
+
+        await DownloadAndInstallAsync(ids);
+    }
+
+    private void Share_Click(object sender, RoutedEventArgs e)
+    {
+        new ShareModsWindow { Owner = Window.GetWindow(this) }.ShowDialog();
     }
 
     private void Detect_Click(object sender, RoutedEventArgs e)
@@ -217,14 +251,12 @@ public partial class ModsPage : UserControl
                 var name = ModService.ReadModName(source, fallback);
                 var folderName = existing?.Folder ?? UniqueFolderName(ModService.MakeFolderName(name, id), id);
 
-                Log($"Copie de « {name} » dans le serveur ({folderName})…");
-                await Task.Run(() => ModService.InstallToServer(source, serverFolder, folderName));
-
-                if (existing == null)
-                    AppSettings.Current.Mods.Add(new ModEntry { Id = id, Name = name, Folder = folderName });
-                else
-                    existing.Name = name;
-                Log($"« {name} » est prêt.");
+                var entry = existing ?? new ModEntry { Id = id, Name = name, Folder = folderName };
+                entry.Name = name;
+                Log($"Vérification de « {name} »…");
+                var copied = await Task.Run(() => ModService.SyncMod(entry, source, serverFolder));
+                if (existing == null) AppSettings.Current.Mods.Add(entry);
+                Log(copied ? $"« {name} » copié dans le serveur ({folderName})." : $"« {name} » est déjà à jour.");
             }
             AppSettings.Current.Save();
 

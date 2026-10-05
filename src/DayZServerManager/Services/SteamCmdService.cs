@@ -9,14 +9,19 @@ namespace DayZServerManager.Services;
 
 public record SteamCmdResult(int ExitCode, string Output)
 {
-    public bool ServerInstallSucceeded => Output.Contains("Success! App '223350' fully installed", StringComparison.OrdinalIgnoreCase);
+    public bool ServerInstallSucceeded => Output.Contains("Success! App '", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Pilote SteamCMD : installation, connexion à Steam et téléchargement du serveur DayZ.</summary>
 public sealed class SteamCmdService
 {
     public const string DayZServerAppId = "223350";
+    public const string DayZExperimentalAppId = "1042420";
     public const string DayZWorkshopAppId = "221100";
+
+    /// <summary>Serveur stable ou expérimental, selon les réglages.</summary>
+    public static string ServerAppId =>
+        AppSettings.Current.ServerBranch == "experimental" ? DayZExperimentalAppId : DayZServerAppId;
 
     // Un seul SteamCMD à la fois (installation du serveur ou mods).
     private static readonly SemaphoreSlim SteamLock = new(1, 1);
@@ -75,13 +80,38 @@ public sealed class SteamCmdService
 
     // ===== Téléchargement du serveur =====
 
-    public Task<SteamCmdResult> DownloadServerAsync(string user, string password, CancellationToken ct)
+    /// <summary>Installe ou met à jour le serveur. Sans mot de passe, SteamCMD réutilise la connexion enregistrée.</summary>
+    public Task<SteamCmdResult> DownloadServerAsync(string user, string? password, CancellationToken ct)
     {
         Directory.CreateDirectory(ServerFolder);
         _lastStage = "";
-        var args = $"+force_install_dir {Quote(ServerFolder)} +login {Quote(user)} {Quote(password)} " +
-                   $"+app_update {DayZServerAppId} validate +quit";
+        var login = string.IsNullOrEmpty(password) ? Quote(user) : $"{Quote(user)} {Quote(password)}";
+        var args = $"+force_install_dir {Quote(ServerFolder)} +login {login} +app_update {ServerAppId} validate +quit";
         return RunAsync(args, ct);
+    }
+
+    /// <summary>Numéro de la dernière version publiée par Bohemia (null si inconnu).</summary>
+    public async Task<string?> GetLatestBuildIdAsync(CancellationToken ct)
+    {
+        var result = await RunAsync($"+login anonymous +app_info_update 1 +app_info_print {ServerAppId} +quit", ct);
+        var match = Regex.Match(result.Output, "\"public\"\\s*\\{?\\s*\"buildid\"\\s*\"(\\d+)\"", RegexOptions.Singleline);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    /// <summary>Numéro de la version installée (null si inconnu).</summary>
+    public string? GetInstalledBuildId()
+    {
+        try
+        {
+            var manifest = Path.Combine(ServerFolder, "steamapps", $"appmanifest_{ServerAppId}.acf");
+            if (!File.Exists(manifest)) return null;
+            var match = Regex.Match(File.ReadAllText(manifest), "\"buildid\"\\s*\"(\\d+)\"");
+            return match.Success ? match.Groups[1].Value : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     // ===== Téléchargement des mods du Workshop =====
@@ -217,9 +247,9 @@ public sealed class SteamCmdService
     {
         var line = raw.Trim();
         if (line.Length == 0) return;
-        // La console peut réafficher d'anciennes lignes : on ne les répète pas.
-        if (!_seenLines.Add(line)) return;
         lock (all) all.AppendLine(line);
+        // La console peut réafficher d'anciennes lignes : on ne les répète pas à l'écran.
+        if (!_seenLines.Add(line)) return;
 
         var match = ProgressRegex.Match(line);
         if (match.Success)

@@ -12,12 +12,19 @@ public sealed class ServerManager
     private bool _stopRequested;
     private bool _restarting;
     private readonly HashSet<int> _warningsSent = new();
+    private bool _updatePending;
+    private bool _checkingUpdate;
+    private DateTime _lastUpdateCheck = DateTime.Now;
     private static readonly int[] WarningMinutes = [1, 5, 10];
     private readonly System.Threading.Timer _scheduleTimer;
 
     private ServerManager()
     {
-        _scheduleTimer = new System.Threading.Timer(_ => CheckScheduledRestart(), null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        _scheduleTimer = new System.Threading.Timer(_ =>
+        {
+            CheckScheduledRestart();
+            _ = CheckServerUpdateAsync();
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
     public DateTime? StartedAt { get; private set; }
@@ -128,6 +135,9 @@ public sealed class ServerManager
             }
         }
 
+        if (settings.AutoUpdateServer || (settings.AutoUpdateMods && settings.Mods.Any(m => m.Id.Length > 0)))
+            await RunUpdatesBeforeStartAsync(settings);
+
         // BattlEye renomme son fichier pendant que le serveur tourne : on le réécrit avant chaque démarrage.
         try { BattlEyeConfig.Write(BattlEyeConfig.ReadPassword(), settings.RconPort); }
         catch { /* le serveur démarrera avec l'ancien fichier */ }
@@ -136,6 +146,7 @@ public sealed class ServerManager
         if (started)
         {
             _warningsSent.Clear();
+            _lastUpdateCheck = DateTime.Now;
             _ = DiscordNotifier.NotifyAsync("🟢 Serveur démarré", "Le serveur est en cours de démarrage.", DiscordNotifier.Green);
         }
         return started;
@@ -280,6 +291,113 @@ public sealed class ServerManager
         _ = DiscordNotifier.NotifyAsync("🔄 Redémarrage programmé",
             $"Redémarrage automatique (toutes les {s.RestartHours} h).", DiscordNotifier.Purple);
         _ = RestartAsync();
+    }
+
+    // ===== Mises à jour automatiques =====
+
+    /// <summary>Met à jour le serveur et les mods juste avant le démarrage (sans rien demander à l'utilisateur).</summary>
+    private async Task RunUpdatesBeforeStartAsync(AppSettings settings)
+    {
+        var steam = new SteamCmdService(settings.ServerFolder);
+        if (!File.Exists(steam.SteamCmdExe) || string.IsNullOrWhiteSpace(settings.SteamUser))
+        {
+            Log?.Invoke("Mises à jour automatiques ignorées : SteamCMD ou compte Steam introuvable (fais d'abord une installation).");
+            return;
+        }
+
+        // Personne n'est là pour taper un mot de passe : SteamCMD doit réutiliser la connexion enregistrée.
+        steam.AskPassword = () => null;
+        steam.AskSteamGuardCode = () => null;
+
+        try
+        {
+            if (settings.AutoUpdateServer)
+            {
+                Log?.Invoke("Vérification des mises à jour du serveur DayZ…");
+                var before = steam.GetInstalledBuildId();
+                var result = await steam.DownloadServerAsync(settings.SteamUser, null, CancellationToken.None);
+                if (!result.ServerInstallSucceeded)
+                    Log?.Invoke("Mise à jour du serveur impossible (reconnecte-toi à Steam depuis l'onglet Installation). Le serveur démarre quand même.");
+                else
+                    Log?.Invoke(before != steam.GetInstalledBuildId() ? "Serveur DayZ mis à jour !" : "Serveur DayZ déjà à jour.");
+            }
+
+            if (settings.AutoUpdateMods)
+            {
+                var mods = settings.Mods.Where(m => m.Id.Length > 0).ToList();
+                if (mods.Count > 0)
+                {
+                    Log?.Invoke($"Vérification des mises à jour de {mods.Count} mod(s)…");
+                    var result = await steam.DownloadWorkshopItemsAsync(settings.SteamUser, null, mods.Select(m => m.Id), CancellationToken.None);
+                    int updated = 0;
+                    await Task.Run(() =>
+                    {
+                        foreach (var mod in mods.Where(m => result.Output.Contains($"Downloaded item {m.Id}")))
+                            if (ModService.SyncMod(mod, Path.Combine(steam.WorkshopContentFolder, mod.Id), ServerFolder)) updated++;
+                    });
+                    settings.Save();
+                    Log?.Invoke(updated > 0 ? $"{updated} mod(s) mis à jour." : "Mods déjà à jour.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log?.Invoke($"Mises à jour automatiques impossibles : {ex.Message}");
+        }
+    }
+
+    /// <summary>Toutes les 30 minutes, regarde si Bohemia a publié une nouvelle version de DayZ.</summary>
+    private async Task CheckServerUpdateAsync()
+    {
+        var settings = AppSettings.Current;
+        if (!settings.AutoUpdateServer || !IsRunning || _restarting || _updatePending || _checkingUpdate) return;
+        if (DateTime.Now - _lastUpdateCheck < TimeSpan.FromMinutes(30)) return;
+
+        _checkingUpdate = true;
+        _lastUpdateCheck = DateTime.Now;
+        try
+        {
+            var steam = new SteamCmdService(settings.ServerFolder);
+            if (!File.Exists(steam.SteamCmdExe)) return;
+            var latest = await steam.GetLatestBuildIdAsync(CancellationToken.None);
+            var installed = steam.GetInstalledBuildId();
+            if (latest == null || installed == null || latest == installed) return;
+            _ = UpdateRestartAsync();
+        }
+        catch
+        {
+            // SteamCMD occupé ou Steam injoignable : on réessaiera plus tard.
+        }
+        finally
+        {
+            _checkingUpdate = false;
+        }
+    }
+
+    /// <summary>Prévient les joueurs, puis redémarre (la mise à jour se fait au redémarrage).</summary>
+    private async Task UpdateRestartAsync()
+    {
+        _updatePending = true;
+        try
+        {
+            Log?.Invoke("Nouvelle version de DayZ disponible : redémarrage dans 5 minutes pour l'installer.");
+            _ = DiscordNotifier.NotifyAsync("⬆️ Mise à jour de DayZ",
+                "Une nouvelle version de DayZ est disponible : le serveur redémarre dans 5 minutes pour l'installer.", DiscordNotifier.Purple);
+
+            if (AppSettings.Current.WarnBeforeRestart)
+                await WarnPlayersAsync("Mise à jour du serveur : redémarrage dans 5 minutes / Server update: restart in 5 min");
+            await Task.Delay(TimeSpan.FromMinutes(4));
+            if (!IsRunning) return;
+
+            if (AppSettings.Current.WarnBeforeRestart)
+                await WarnPlayersAsync("Mise à jour du serveur : redémarrage dans 1 minute / Server update: restart in 1 min");
+            await Task.Delay(TimeSpan.FromMinutes(1));
+            if (IsRunning) await RestartAsync();
+        }
+        finally
+        {
+            _updatePending = false;
+        }
     }
 
     private async Task WarnPlayersAsync(string message)

@@ -11,6 +11,9 @@ public class ModEntry
     public string Folder { get; set; } = "";
     public bool Enabled { get; set; } = true;
     public bool ServerSide { get; set; }
+
+    /// <summary>Date des fichiers du mod lors de la dernière copie (évite de recopier un mod inchangé).</summary>
+    public long SourceStamp { get; set; }
 }
 
 /// <summary>Réglages de l'application, enregistrés dans %AppData%\DayZServerManager.</summary>
@@ -73,6 +76,21 @@ public class AppSettings
     public bool UseCustomLaunchLine { get; set; }
 
     public string CustomLaunchLine { get; set; } = "";
+
+    /// <summary>« stable » ou « experimental ».</summary>
+    public string ServerBranch { get; set; } = "stable";
+
+    /// <summary>Met à jour le serveur à chaque démarrage et surveille les nouvelles versions de DayZ.</summary>
+    public bool AutoUpdateServer { get; set; }
+
+    /// <summary>Met à jour les mods du Workshop à chaque démarrage du serveur.</summary>
+    public bool AutoUpdateMods { get; set; }
+
+    /// <summary>Démarre le serveur dès l'ouverture de l'application.</summary>
+    public bool AutoStartServer { get; set; }
+
+    /// <summary>Le bouton Fermer réduit l'application près de l'horloge.</summary>
+    public bool CloseToTray { get; set; } = true;
 
     /// <summary>Noms associés aux SteamID de la whitelist et de la file prioritaire.</summary>
     public Dictionary<string, string> SteamNames { get; set; } = new();

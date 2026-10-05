@@ -1,0 +1,70 @@
+<UserControl x:Class="DayZServerManager.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="0,0,8,0">
+            <TextBlock Text="PARAMÈTRES" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Démarrage, zone de notification et mises à jour automatiques." FontSize="14"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" />
+
+            <!-- ===== Démarrage ===== -->
+            <Border Style="{StaticResource Card}" Margin="0,24,0,0">
+                <StackPanel>
+                    <TextBlock Text="DÉMARRAGE" Style="{StaticResource SectionTitle}" />
+                    <CheckBox x:Name="StartWithWindowsToggle" Style="{StaticResource ToggleSwitch}" Margin="0,18,0,0"
+                              Content="Lancer Stryxhost Manager à l'ouverture de Windows (réduit près de l'horloge)"
+                              Click="StartWithWindows_Click" />
+                    <CheckBox x:Name="AutoStartServerToggle" Style="{StaticResource ToggleSwitch}" Margin="0,14,0,0"
+                              Content="Démarrer le serveur automatiquement à l'ouverture de l'application"
+                              Click="Options_Changed" />
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,12,0,0"
+                               Text="Avec ces deux options, ton serveur redémarre tout seul même après un redémarrage du PC." />
+                </StackPanel>
+            </Border>
+
+            <!-- ===== Zone de notification ===== -->
+            <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+                <StackPanel>
+                    <TextBlock Text="ZONE DE NOTIFICATION" Style="{StaticResource SectionTitle}" />
+                    <CheckBox x:Name="CloseToTrayToggle" Style="{StaticResource ToggleSwitch}" Margin="0,18,0,0"
+                              Content="Le bouton Fermer réduit l'application près de l'horloge au lieu de la quitter"
+                              Click="Options_Changed" />
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,12,0,0"
+                               Text="L'application continue alors de surveiller le serveur (crash, redémarrages, mises à jour). Pour la quitter vraiment : clic droit sur son icône près de l'horloge, puis « Quitter »." />
+                </StackPanel>
+            </Border>
+
+            <!-- ===== Mises à jour ===== -->
+            <Border Style="{StaticResource Card}" Margin="0,20,0,0">
+                <StackPanel>
+                    <TextBlock Text="MISES À JOUR DU SERVEUR" Style="{StaticResource SectionTitle}" />
+
+                    <TextBlock Text="Version de DayZ" Style="{StaticResource MutedText}" Margin="0,16,0,8" />
+                    <WrapPanel>
+                        <RadioButton x:Name="StableChip" Content="Stable" GroupName="branch" Style="{StaticResource ChipButton}"
+                                     Click="Branch_Click" />
+                        <RadioButton x:Name="ExperimentalChip" Content="Expérimentale" GroupName="branch"
+                                     Style="{StaticResource ChipButton}" Click="Branch_Click" />
+                    </WrapPanel>
+                    <TextBlock x:Name="BranchInfo" Style="{StaticResource MutedText}" Margin="0,10,0,0" />
+
+                    <CheckBox x:Name="AutoUpdateServerToggle" Style="{StaticResource ToggleSwitch}" Margin="0,20,0,0"
+                              Content="Mettre à jour le serveur DayZ automatiquement" Click="Options_Changed" />
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,6,0,0"
+                               Text="À chaque démarrage du serveur, et toutes les 30 minutes une vérification : si Bohemia sort une mise à jour, les joueurs sont prévenus et le serveur redémarre 5 minutes plus tard pour l'installer." />
+
+                    <CheckBox x:Name="AutoUpdateModsToggle" Style="{StaticResource ToggleSwitch}" Margin="0,16,0,0"
+                              Content="Mettre à jour les mods automatiquement à chaque démarrage du serveur" Click="Options_Changed" />
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,6,0,0"
+                               Text="Seuls les mods qui ont changé sont recopiés, pour que le démarrage reste rapide." />
+
+                    <TextBlock Style="{StaticResource MutedText}" Foreground="{StaticResource WarnBrush}" Margin="0,14,0,0"
+                               Text="Les mises à jour automatiques réutilisent ta connexion Steam enregistrée : fais au moins une installation ou une installation de mod en te connectant, pour que SteamCMD la retienne." />
+                </StackPanel>
+            </Border>
+
+            <TextBlock x:Name="StatusText" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,16,0,8" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -77,6 +77,53 @@ public static class WorkshopService
         return items;
     }
 
+    /// <summary>
+    /// Mods requis par un mod (et leurs propres mods requis), dans l'ordre où ils doivent être chargés.
+    /// Le mod lui-même n'est pas inclus.
+    /// </summary>
+    public static async Task<List<string>> GetRequiredItemsAsync(string id, CancellationToken ct = default)
+    {
+        var ordered = new List<string>();
+        var seen = new HashSet<string> { id };
+
+        async Task VisitAsync(string current, int depth)
+        {
+            if (depth > 4) return;
+            foreach (var dependency in await GetDirectRequiredAsync(current, ct))
+            {
+                if (!seen.Add(dependency)) continue;
+                await VisitAsync(dependency, depth + 1); // ses propres dépendances passent avant lui
+                ordered.Add(dependency);
+            }
+        }
+
+        await VisitAsync(id, 0);
+        return ordered;
+    }
+
+    private static async Task<List<string>> GetDirectRequiredAsync(string id, CancellationToken ct)
+    {
+        var html = await Http.GetStringAsync($"https://steamcommunity.com/sharedfiles/filedetails/?id={id}", ct);
+        int start = html.IndexOf("id=\"RequiredItems\"", StringComparison.Ordinal);
+        if (start < 0) return new List<string>();
+
+        // Le bloc « Objets requis » se termine au premier </div> qui n'est pas suivi d'un </a>.
+        var block = html.Substring(start, Math.Min(8000, html.Length - start));
+        foreach (Match close in Regex.Matches(block, "</div>"))
+        {
+            var after = block[(close.Index + close.Length)..].TrimStart();
+            if (after.StartsWith("</a>", StringComparison.Ordinal)) continue;
+            block = block[..close.Index];
+            break;
+        }
+
+        return Regex.Matches(block, @"filedetails/\?id=(\d+)")
+            .Select(m => m.Groups[1].Value)
+            .Where(found => found != id)
+            .Distinct()
+            .ToList();
+    }
+
     private static string ReadString(JsonElement element, string name) =>
         element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString() ?? ""

@@ -291,6 +291,9 @@ public partial class InstallPage : UserControl
 
         if (_cts == null)
             StartButton.Content = serverInstalled ? "Mettre à jour le serveur" : "Lancer l'installation";
+        AppInfoText.Text = AppSettings.Current.ServerBranch == "experimental"
+            ? "Téléchargement via SteamCMD · version expérimentale"
+            : "Téléchargement via SteamCMD · version stable";
 
         StepsGrid.Children.Clear();
         for (int i = 0; i < StepNames.Length; i++)

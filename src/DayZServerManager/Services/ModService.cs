@@ -73,6 +73,25 @@ public static class ModService
         return found;
     }
 
+    /// <summary>Copie un mod dans le serveur seulement s'il a changé depuis la dernière copie. Renvoie true si copié.</summary>
+    public static bool SyncMod(ModEntry mod, string sourceFolder, string serverFolder, bool force = false)
+    {
+        if (!Directory.Exists(sourceFolder)) return false;
+        var stamp = SourceStamp(sourceFolder);
+        var target = Path.Combine(serverFolder, mod.Folder);
+        if (!force && stamp == mod.SourceStamp && Directory.Exists(target)) return false;
+
+        InstallToServer(sourceFolder, serverFolder, mod.Folder);
+        mod.SourceStamp = stamp;
+        return true;
+    }
+
+    private static long SourceStamp(string folder) =>
+        Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories)
+            .Select(file => File.GetLastWriteTimeUtc(file).Ticks)
+            .DefaultIfEmpty(0)
+            .Max();
+
     public static void RemoveFromServer(string serverFolder, string folderName)
     {
         var target = Path.Combine(serverFolder, folderName);
