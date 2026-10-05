@@ -66,6 +66,14 @@ public class AppSettings
     public string DiscordWebhook { get; set; } = "";
     public bool DiscordEnabled { get; set; }
 
+    /// <summary>Paramètres ajoutés à la fin de la ligne de lancement.</summary>
+    public string ExtraLaunchArgs { get; set; } = "";
+
+    /// <summary>Utiliser une ligne de lancement écrite à la main à la place de la ligne automatique.</summary>
+    public bool UseCustomLaunchLine { get; set; }
+
+    public string CustomLaunchLine { get; set; } = "";
+
     /// <summary>Noms associés aux SteamID de la whitelist et de la file prioritaire.</summary>
     public Dictionary<string, string> SteamNames { get; set; } = new();
 

@@ -131,8 +131,12 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <DockPanel>
-                    <Button DockPanel.Dock="Right" Content="Dossier des journaux" Style="{StaticResource SmallButton}"
-                            Click="OpenLogs_Click" />
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Paramètres de lancement" Style="{StaticResource SmallButton}"
+                                Click="LaunchSettings_Click" />
+                        <Button Content="Dossier des journaux" Style="{StaticResource SmallButton}" Margin="8,0,0,0"
+                                Click="OpenLogs_Click" />
+                    </StackPanel>
                     <TextBlock Text="ACTIVITÉ" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
                 </DockPanel>
                 <Border Grid.Row="1" Background="{StaticResource ConsoleBrush}" CornerRadius="10" Padding="14"

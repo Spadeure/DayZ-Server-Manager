@@ -51,6 +51,9 @@
                     <DockPanel>
                         <Button x:Name="UpdateAllButton" DockPanel.Dock="Right" Content="Mettre à jour tous les mods"
                                 Style="{StaticResource SmallButton}" VerticalAlignment="Center" Click="UpdateAll_Click" />
+                        <Button x:Name="DetectButton" DockPanel.Dock="Right" Content="Détecter les mods ajoutés à la main"
+                                Style="{StaticResource SmallButton}" VerticalAlignment="Center" Margin="0,0,8,0"
+                                Visibility="Collapsed" Click="Detect_Click" />
                         <StackPanel Orientation="Horizontal">
                             <RadioButton x:Name="ResultsTab" Content="Résultats" GroupName="modtabs"
                                          Style="{StaticResource ChipButton}" Height="36" Padding="14,0" Checked="Tab_Checked" />

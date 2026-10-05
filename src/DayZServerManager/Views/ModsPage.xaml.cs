@@ -90,6 +90,7 @@ public partial class ModsPage : UserControl
         ResultsScroll.Visibility = showResults ? Visibility.Visible : Visibility.Collapsed;
         InstalledScroll.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
         UpdateAllButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
+        DetectButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ===== Actions =====
@@ -105,10 +106,36 @@ public partial class ModsPage : UserControl
         await DownloadAndInstallAsync([item.Id]);
     }
 
+    private void Detect_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        if (!DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder))
+        {
+            ShowStatus("Installe d'abord le serveur depuis l'onglet Installation.", "WarnBrush");
+            return;
+        }
+        try
+        {
+            var found = ModService.DetectManualMods(ServerManager.ServerFolder, AppSettings.Current.Mods);
+            AppSettings.Current.Mods.AddRange(found);
+            AppSettings.Current.Save();
+            BuildList();
+            ShowStatus(found.Count == 0
+                ? "Aucun nouveau mod trouvé dans le dossier du serveur."
+                : $"{found.Count} mod(s) ajouté(s) : {string.Join(", ", found.Select(m => m.Name))}. Vérifie leur ordre de chargement.",
+                found.Count == 0 ? "MutedBrush" : "CyanBrush");
+        }
+        catch (Exception ex)
+        {
+            ShowStatus($"Erreur : {ex.Message}", "WarnBrush");
+        }
+    }
+
     private async void UpdateAll_Click(object sender, RoutedEventArgs e)
     {
         if (_busy) return;
-        var ids = AppSettings.Current.Mods.Select(m => m.Id).ToList();
+        // Les mods ajoutés à la main n'ont pas de numéro Workshop : on ne peut pas les mettre à jour.
+        var ids = AppSettings.Current.Mods.Where(m => m.Id.Length > 0).Select(m => m.Id).ToList();
         if (ids.Count == 0)
         {
             ShowStatus("Aucun mod à mettre à jour.", "MutedBrush");
@@ -243,7 +270,7 @@ public partial class ModsPage : UserControl
     {
         if (_busy) return;
         var answer = MessageBox.Show(Window.GetWindow(this)!,
-            $"Supprimer le mod « {mod.Name} » du serveur ?", "Stryxhost Manager",
+            $"Supprimer le mod « {mod.Name} » du serveur ?\n\nSon dossier {mod.Folder} sera supprimé du serveur.", "Stryxhost Manager",
             MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes) return;
 
@@ -425,7 +452,7 @@ public partial class ModsPage : UserControl
         });
         texts.Children.Add(new TextBlock
         {
-            Text = $"{mod.Folder} · {mod.Id}",
+            Text = mod.Id.Length > 0 ? $"{mod.Folder} · {mod.Id}" : $"{mod.Folder} · ajouté à la main",
             FontSize = 12,
             Foreground = Res("MutedBrush"),
             Margin = new Thickness(0, 2, 0, 0),

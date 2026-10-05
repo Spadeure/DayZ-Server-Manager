@@ -36,10 +36,41 @@ public static class ModService
         var target = Path.Combine(serverFolder, folderName);
         CopyDirectory(sourceFolder, target);
 
+        CopyKeys(sourceFolder, serverFolder);
+    }
+
+    /// <summary>Copie les clés (.bikey) d'un mod dans le dossier keys du serveur.</summary>
+    public static void CopyKeys(string modFolder, string serverFolder)
+    {
         var keysFolder = Path.Combine(serverFolder, "keys");
         Directory.CreateDirectory(keysFolder);
-        foreach (var key in Directory.EnumerateFiles(sourceFolder, "*.bikey", SearchOption.AllDirectories))
+        foreach (var key in Directory.EnumerateFiles(modFolder, "*.bikey", SearchOption.AllDirectories))
             File.Copy(key, Path.Combine(keysFolder, Path.GetFileName(key)), overwrite: true);
+    }
+
+    /// <summary>Trouve les mods (dossiers @…) copiés à la main dans le serveur et pas encore dans la liste.</summary>
+    public static List<ModEntry> DetectManualMods(string serverFolder, IEnumerable<ModEntry> known)
+    {
+        var knownFolders = new HashSet<string>(known.Select(m => m.Folder), StringComparer.OrdinalIgnoreCase);
+        var found = new List<ModEntry>();
+        if (!Directory.Exists(serverFolder)) return found;
+
+        foreach (var dir in Directory.GetDirectories(serverFolder, "@*"))
+        {
+            var folder = Path.GetFileName(dir);
+            if (knownFolders.Contains(folder)) continue;
+            if (!Directory.Exists(Path.Combine(dir, "addons"))) continue; // ce n'est pas un mod
+
+            try { CopyKeys(dir, serverFolder); } catch { /* clés illisibles */ }
+            found.Add(new ModEntry
+            {
+                Id = "",
+                Name = ReadModName(dir, folder.TrimStart('@')),
+                Folder = folder,
+                Enabled = true,
+            });
+        }
+        return found;
     }
 
     public static void RemoveFromServer(string serverFolder, string folderName)

@@ -44,12 +44,22 @@ public sealed class ServerManager
     public static string ExePath => Path.Combine(ServerFolder, "DayZServer_x64.exe");
     public static string ProfilesFolder => Path.Combine(ServerFolder, "profiles");
 
+    /// <summary>Ligne de lancement réellement utilisée (personnalisée, ou automatique + paramètres en plus).</summary>
     public static string BuildArguments()
+    {
+        var s = AppSettings.Current;
+        if (s.UseCustomLaunchLine && !string.IsNullOrWhiteSpace(s.CustomLaunchLine)) return s.CustomLaunchLine.Trim();
+        var extra = (s.ExtraLaunchArgs ?? "").Trim();
+        return extra.Length == 0 ? BuildDefaultArguments() : $"{BuildDefaultArguments()} {extra}";
+    }
+
+    /// <summary>Ligne automatique : ports, journaux et mods de l'onglet Mods.</summary>
+    public static string BuildDefaultArguments()
     {
         var s = AppSettings.Current;
         var args = new List<string>
         {
-            "-config=serverDZ.cfg", $"-port={s.GamePort}", "-profiles=profiles", "-BEpath=battleye",
+            "-config=serverDZ.cfg", $"-port={s.GamePort}", "-profiles=profiles",
             "-dologs", "-adminlog", "-netlog", "-freezecheck",
         };
 
@@ -119,7 +129,7 @@ public sealed class ServerManager
         }
 
         // BattlEye renomme son fichier pendant que le serveur tourne : on le réécrit avant chaque démarrage.
-        try { BattlEyeConfig.Write(settings.RconPassword, settings.RconPort); }
+        try { BattlEyeConfig.Write(BattlEyeConfig.ReadPassword(), settings.RconPort); }
         catch { /* le serveur démarrera avec l'ancien fichier */ }
 
         var started = Start();

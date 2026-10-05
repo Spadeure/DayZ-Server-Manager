@@ -111,6 +111,16 @@ public partial class ServerPage : UserControl
         settings.Save();
     }
 
+    private void LaunchSettings_Click(object sender, RoutedEventArgs e)
+    {
+        var window = new LaunchWindow { Owner = Window.GetWindow(this) };
+        if (window.ShowDialog() != true) return;
+        Log(ServerManager.Instance.IsRunning
+            ? "Paramètres de lancement enregistrés : ils seront appliqués au prochain redémarrage."
+            : "Paramètres de lancement enregistrés.");
+        UpdateStatus();
+    }
+
     private void OpenLogs_Click(object sender, RoutedEventArgs e)
     {
         var folder = ServerManager.ProfilesFolder;
