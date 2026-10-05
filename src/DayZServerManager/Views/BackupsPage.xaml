@@ -1,0 +1,84 @@
+<UserControl x:Class="DayZServerManager.Views.BackupsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="SAUVEGARDES" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Protège la progression de ton serveur : bases, objets, véhicules, tentes…" FontSize="14"
+                       Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,24,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- ===== Sauvegarde ===== -->
+            <Border Grid.Column="0" Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="SAUVEGARDE AUTOMATIQUE" Style="{StaticResource SectionTitle}" />
+                    <CheckBox x:Name="AutoToggle" Content="Sauvegarder à chaque démarrage du serveur"
+                              Style="{StaticResource ToggleSwitch}" Margin="0,18,0,0" Click="Options_Changed" />
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <TextBlock Text="Garder les" Foreground="{StaticResource MutedBrush}" FontSize="13"
+                                   VerticalAlignment="Center" />
+                        <TextBox x:Name="KeepBox" Style="{StaticResource FieldBox}" Width="64" Height="36"
+                                 TextAlignment="Center" MaxLength="3" Margin="10,0" FontFamily="Segoe UI"
+                                 LostFocus="Options_Changed" />
+                        <TextBlock Text="dernières sauvegardes automatiques" Foreground="{StaticResource MutedBrush}"
+                                   FontSize="13" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,12,0,0"
+                               Text="Le démarrage se fait aussi lors des redémarrages automatiques et programmés : tu as donc toujours une sauvegarde récente." />
+                    <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                        <Button x:Name="BackupButton" Content="Sauvegarder maintenant" Style="{StaticResource PrimaryButton}"
+                                Click="BackupNow_Click" />
+                        <Button Content="Ouvrir le dossier" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0"
+                                Click="OpenFolder_Click" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== Wipe ===== -->
+            <Border Grid.Column="2" Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="REMISE À ZÉRO (WIPE)" Style="{StaticResource SectionTitle}"
+                               Foreground="{StaticResource WarnBrush}" />
+                    <TextBlock Style="{StaticResource MutedText}" FontSize="13" Margin="0,14,0,0"
+                               Text="Efface toute la progression de la carte : bases, objets posés, véhicules, personnages des joueurs. Le serveur repartira comme neuf au prochain démarrage." />
+                    <TextBlock Style="{StaticResource MutedText}" FontSize="13" Margin="0,8,0,0"
+                               Text="Une sauvegarde de sécurité est faite juste avant : tu peux revenir en arrière avec « Restaurer »." />
+                    <Button x:Name="WipeButton" Content="Remettre la carte à zéro" Style="{StaticResource SecondaryButton}"
+                            Foreground="{StaticResource WarnBrush}" BorderBrush="{StaticResource WarnBrush}"
+                            HorizontalAlignment="Left" Margin="0,18,0,0" Click="Wipe_Click" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- ===== Liste ===== -->
+        <Border Grid.Row="2" Style="{StaticResource Card}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="ListTitle" Text="SAUVEGARDES" Style="{StaticResource SectionTitle}" />
+                <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="BackupsList" />
+                </ScrollViewer>
+                <TextBlock x:Name="StatusText" Grid.Row="2" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,12,0,0" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -46,6 +46,17 @@ public class AppSettings
 
     public int RestartHours { get; set; } = 4;
 
+    /// <summary>Sauvegarde de la persistance à chaque démarrage du serveur.</summary>
+    public bool AutoBackup { get; set; } = true;
+
+    /// <summary>Nombre de sauvegardes automatiques gardées.</summary>
+    public int BackupKeep { get; set; } = 20;
+
+    /// <summary>Suppression automatique des vieux journaux du serveur.</summary>
+    public bool AutoCleanLogs { get; set; } = true;
+
+    public int LogRetentionDays { get; set; } = 14;
+
     /// <summary>Mods du Workshop installés sur le serveur, dans l'ordre de chargement.</summary>
     public List<ModEntry> Mods { get; set; } = new();
 

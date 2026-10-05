@@ -18,6 +18,8 @@ public partial class MainWindow : Window
     private readonly ServerPage _serverPage;
     private readonly ConfigPage _configPage;
     private readonly ModsPage _modsPage;
+    private readonly BackupsPage _backupsPage;
+    private readonly LogsPage _logsPage;
 
     public MainWindow()
     {
@@ -34,6 +36,8 @@ public partial class MainWindow : Window
         _serverPage = new ServerPage();
         _configPage = new ConfigPage();
         _modsPage = new ModsPage();
+        _backupsPage = new BackupsPage();
+        _logsPage = new LogsPage();
         _updatePage.UpdateAvailabilityChanged += OnUpdateAvailabilityChanged;
         ShowPage("install");
 
@@ -55,7 +59,8 @@ public partial class MainWindow : Window
             "config" => _configPage,
             "mods" => _modsPage,
             "firewall" => _firewallPage,
-            "logs" => new PlaceholderPage("JOURNAUX", "Consulter les journaux du serveur et de l'application."),
+            "backups" => _backupsPage,
+            "logs" => _logsPage,
             "updates" => _updatePage,
             _ => _installPage,
         };
@@ -65,6 +70,8 @@ public partial class MainWindow : Window
         if (tag == "server") _serverPage.Refresh();
         if (tag == "config") _configPage.Load();
         if (tag == "mods") _modsPage.Refresh();
+        if (tag == "backups") _backupsPage.Refresh();
+        if (tag == "logs") _logsPage.Refresh();
 
         // Petite animation d'apparition de la page.
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };

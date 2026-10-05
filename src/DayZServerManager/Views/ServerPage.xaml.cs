@@ -47,14 +47,22 @@ public partial class ServerPage : UserControl
 
     // ===== Actions =====
 
-    private void Start_Click(object sender, RoutedEventArgs e)
+    private async void Start_Click(object sender, RoutedEventArgs e)
     {
+        if (_busy) return;
         if (!DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder))
         {
             Log("Installe d'abord le serveur depuis l'onglet Installation.");
             return;
         }
-        ServerManager.Instance.Start();
+        _busy = true;
+        UpdateStatus();
+        try { await ServerManager.Instance.StartAsync(); }
+        finally
+        {
+            _busy = false;
+            UpdateStatus();
+        }
     }
 
     private async void Stop_Click(object sender, RoutedEventArgs e)

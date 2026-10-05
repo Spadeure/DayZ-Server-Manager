@@ -82,6 +82,8 @@
                                          Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Pare-feu" Tag="firewall"
                                          Checked="Nav_Checked" />
+                            <RadioButton Style="{StaticResource NavButton}" Content="Sauvegardes" Tag="backups"
+                                         Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Journaux" Tag="logs"
                                          Checked="Nav_Checked" />
                             <RadioButton x:Name="UpdatesNav" Style="{StaticResource NavButton}" Content="Mises à jour"

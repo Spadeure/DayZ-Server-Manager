@@ -84,7 +84,42 @@ public sealed class ServerManager
         }
     }
 
-    public bool Start()
+    /// <summary>Démarre le serveur, avec sauvegarde automatique et nettoyage des vieux journaux avant.</summary>
+    public async Task<bool> StartAsync()
+    {
+        if (IsRunning) return true;
+        var settings = AppSettings.Current;
+
+        if (settings.AutoBackup && DependencyChecker.IsServerInstalled(settings.ServerFolder))
+        {
+            try
+            {
+                var backup = await Task.Run(() => BackupService.Create("auto"));
+                if (backup != null) Log?.Invoke($"Sauvegarde automatique créée ({backup.FileName}).");
+            }
+            catch (Exception ex)
+            {
+                Log?.Invoke($"Sauvegarde automatique impossible : {ex.Message}");
+            }
+        }
+
+        if (settings.AutoCleanLogs)
+        {
+            try
+            {
+                var (count, _) = await Task.Run(() => LogService.CleanOldLogs());
+                if (count > 0) Log?.Invoke($"{count} vieux journal(aux) supprimé(s).");
+            }
+            catch
+            {
+                // Nettoyage non essentiel.
+            }
+        }
+
+        return Start();
+    }
+
+    private bool Start()
     {
         if (IsRunning) return true;
         if (!DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder))
@@ -155,7 +190,7 @@ public sealed class ServerManager
         {
             await StopAsync();
             await Task.Delay(3000);
-            Start();
+            await StartAsync();
         }
         finally
         {
@@ -184,7 +219,7 @@ public sealed class ServerManager
 
         Log?.Invoke("Redémarrage automatique dans 10 secondes…");
         await Task.Delay(10000);
-        if (!_stopRequested && !IsRunning) Start();
+        if (!_stopRequested && !IsRunning) await StartAsync();
     }
 
     private void CheckScheduledRestart()
