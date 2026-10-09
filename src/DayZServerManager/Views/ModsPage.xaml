@@ -48,23 +48,23 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <DockPanel>
-                        <Button x:Name="UpdateAllButton" DockPanel.Dock="Right" Content="Mettre à jour tous les mods"
-                                Style="{StaticResource SmallButton}" VerticalAlignment="Center" Click="UpdateAll_Click" />
-                        <Button x:Name="ShareButton" DockPanel.Dock="Right" Content="Liste pour les joueurs"
-                                Style="{StaticResource SmallButton}" VerticalAlignment="Center" Margin="0,0,8,0"
-                                Visibility="Collapsed" Click="Share_Click" />
-                        <Button x:Name="DetectButton" DockPanel.Dock="Right" Content="Détecter"
-                                ToolTip="Ajouter les mods copiés à la main dans le dossier du serveur"
-                                Style="{StaticResource SmallButton}" VerticalAlignment="Center" Margin="0,0,8,0"
-                                Visibility="Collapsed" Click="Detect_Click" />
-                        <StackPanel Orientation="Horizontal">
+                    <StackPanel>
+                        <WrapPanel>
                             <RadioButton x:Name="ResultsTab" Content="Résultats" GroupName="modtabs"
                                          Style="{StaticResource ChipButton}" Height="36" Padding="14,0" Checked="Tab_Checked" />
                             <RadioButton x:Name="InstalledTab" Content="Installés" GroupName="modtabs"
                                          Style="{StaticResource ChipButton}" Height="36" Padding="14,0" Checked="Tab_Checked" />
-                        </StackPanel>
-                    </DockPanel>
+                        </WrapPanel>
+                        <WrapPanel x:Name="ActionsPanel" Margin="0,12,0,0" Visibility="Collapsed">
+                            <Button x:Name="UpdateAllButton" Content="Mettre à jour tous les mods"
+                                    Style="{StaticResource SmallButton}" Margin="0,0,8,6" Click="UpdateAll_Click" />
+                            <Button x:Name="ShareButton" Content="Liste pour les joueurs"
+                                    Style="{StaticResource SmallButton}" Margin="0,0,8,6" Click="Share_Click" />
+                            <Button x:Name="DetectButton" Content="Détecter les mods ajoutés à la main"
+                                    ToolTip="Ajouter les mods copiés à la main dans le dossier du serveur"
+                                    Style="{StaticResource SmallButton}" Margin="0,0,8,6" Click="Detect_Click" />
+                        </WrapPanel>
+                    </StackPanel>
 
                     <ScrollViewer x:Name="ResultsScroll" Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">

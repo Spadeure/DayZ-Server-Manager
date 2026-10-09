@@ -36,14 +36,14 @@
                     <TextBlock x:Name="PlayersText" FontSize="13" FontWeight="SemiBold" Margin="0,4,0,0"
                                Foreground="{StaticResource CyanBrush}" />
 
-                    <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
+                    <WrapPanel Margin="0,20,0,0">
                         <Button x:Name="StartButton" Content="Démarrer" Style="{StaticResource PrimaryButton}"
-                                Click="Start_Click" />
+                                Margin="0,0,10,8" Click="Start_Click" />
                         <Button x:Name="RestartButton" Content="Redémarrer" Style="{StaticResource SecondaryButton}"
-                                Margin="10,0,0,0" Click="Restart_Click" />
+                                Margin="0,0,10,8" Click="Restart_Click" />
                         <Button x:Name="StopButton" Content="Arrêter" Style="{StaticResource SecondaryButton}"
-                                Margin="10,0,0,0" Click="Stop_Click" />
-                    </StackPanel>
+                                Margin="0,0,10,8" Click="Stop_Click" />
+                    </WrapPanel>
                 </StackPanel>
             </Border>
 
@@ -55,14 +55,14 @@
                               Style="{StaticResource ToggleSwitch}" Margin="0,18,0,0" Click="Options_Changed" />
                     <CheckBox x:Name="ScheduledToggle" Content="Redémarrage programmé"
                               Style="{StaticResource ToggleSwitch}" Margin="0,14,0,0" Click="Options_Changed" />
-                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <WrapPanel Margin="0,12,0,0">
                         <TextBlock Text="Toutes les" Foreground="{StaticResource MutedBrush}" FontSize="13"
                                    VerticalAlignment="Center" />
                         <TextBox x:Name="HoursBox" Style="{StaticResource NumberBox}" Width="70" MaxLength="2" Margin="10,0"
                                  LostFocus="Hours_LostFocus" />
                         <TextBlock Text="heures" Foreground="{StaticResource MutedBrush}" FontSize="13"
                                    VerticalAlignment="Center" />
-                    </StackPanel>
+                    </WrapPanel>
                     <CheckBox x:Name="WarnToggle" Content="Prévenir les joueurs 10, 5 et 1 min avant"
                               Style="{StaticResource ToggleSwitch}" Margin="0,14,0,0" Click="Options_Changed" />
                     <TextBlock Text="Les redémarrages automatiques fonctionnent tant que l'application est ouverte."
@@ -131,12 +131,12 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
                 <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <WrapPanel DockPanel.Dock="Right">
                         <Button Content="Paramètres de lancement" Style="{StaticResource SmallButton}"
                                 Click="LaunchSettings_Click" />
                         <Button Content="Dossier des journaux" Style="{StaticResource SmallButton}" Margin="8,0,0,0"
                                 Click="OpenLogs_Click" />
-                    </StackPanel>
+                    </WrapPanel>
                     <TextBlock Text="ACTIVITÉ" Style="{StaticResource SectionTitle}" VerticalAlignment="Center" />
                 </DockPanel>
                 <Border Grid.Row="1" Background="{StaticResource ConsoleBrush}" CornerRadius="10" Padding="14"

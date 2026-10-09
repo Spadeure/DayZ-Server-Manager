@@ -27,22 +27,22 @@
                     <TextBlock Text="SAUVEGARDE AUTOMATIQUE" Style="{StaticResource SectionTitle}" />
                     <CheckBox x:Name="AutoToggle" Content="Sauvegarder à chaque démarrage du serveur"
                               Style="{StaticResource ToggleSwitch}" Margin="0,18,0,0" Click="Options_Changed" />
-                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <WrapPanel Margin="0,12,0,0">
                         <TextBlock Text="Garder les" Foreground="{StaticResource MutedBrush}" FontSize="13"
                                    VerticalAlignment="Center" />
                         <TextBox x:Name="KeepBox" Style="{StaticResource NumberBox}" Width="64" MaxLength="3" Margin="10,0"
                                  LostFocus="Options_Changed" />
                         <TextBlock Text="dernières sauvegardes automatiques" Foreground="{StaticResource MutedBrush}"
                                    FontSize="13" VerticalAlignment="Center" />
-                    </StackPanel>
+                    </WrapPanel>
                     <TextBlock Style="{StaticResource MutedText}" Margin="0,12,0,0"
                                Text="Le démarrage se fait aussi lors des redémarrages automatiques et programmés : tu as donc toujours une sauvegarde récente." />
-                    <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                    <WrapPanel Margin="0,18,0,0">
                         <Button x:Name="BackupButton" Content="Sauvegarder maintenant" Style="{StaticResource PrimaryButton}"
-                                Click="BackupNow_Click" />
-                        <Button Content="Ouvrir le dossier" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0"
+                                Margin="0,0,10,8" Click="BackupNow_Click" />
+                        <Button Content="Ouvrir le dossier" Style="{StaticResource SecondaryButton}" Margin="0,0,10,8"
                                 Click="OpenFolder_Click" />
-                    </StackPanel>
+                    </WrapPanel>
                 </StackPanel>
             </Border>
 

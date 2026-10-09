@@ -1,0 +1,69 @@
+<UserControl x:Class="DayZServerManager.Views.EconomyPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="ÉCONOMIE" Style="{StaticResource PageTitle}" />
+            <TextBlock FontSize="14" Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" TextWrapping="Wrap"
+                       Text="Les dossiers d'économie des mods (comme expansion_ce) : ce qui apparaît sur la carte, en quelle quantité et où." />
+        </StackPanel>
+
+        <!-- ===== Mission et création ===== -->
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,24,0,20">
+            <StackPanel>
+                <DockPanel>
+                    <WrapPanel DockPanel.Dock="Right">
+                        <Button Content="Ouvrir la mission" Style="{StaticResource SmallButton}" Margin="8,0,0,6"
+                                Click="OpenMission_Click" />
+                        <Button Content="Ouvrir cfgeconomycore.xml" Style="{StaticResource SmallButton}" Margin="8,0,0,6"
+                                Click="OpenCore_Click" />
+                        <Button Content="Actualiser" Style="{StaticResource SmallButton}" Margin="8,0,0,6"
+                                Click="Refresh_Click" />
+                    </WrapPanel>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="MISSION" Style="{StaticResource SectionTitle}" />
+                        <TextBlock x:Name="MissionText" Style="{StaticResource MutedText}" Margin="0,4,0,0"
+                                   TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" />
+                    </StackPanel>
+                </DockPanel>
+
+                <TextBlock Text="Créer un dossier d'économie pour un mod (ex. : morefood → morefood_ce)"
+                           Style="{StaticResource MutedText}" Margin="0,16,0,6" />
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="FolderNameBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="14"
+                             MaxLength="40" KeyDown="FolderNameBox_KeyDown" />
+                    <Button x:Name="CreateButton" Grid.Column="1" Content="Créer le dossier"
+                            Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Click="CreateFolder_Click" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- ===== Dossiers ===== -->
+        <Border Grid.Row="2" Style="{StaticResource Card}">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="ListTitle" Text="DOSSIERS DÉCLARÉS" Style="{StaticResource SectionTitle}" />
+                <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="FoldersPanel" />
+                </ScrollViewer>
+                <TextBlock x:Name="StatusText" Grid.Row="2" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,12,0,0" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

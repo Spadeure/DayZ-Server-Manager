@@ -22,6 +22,8 @@ public partial class MainWindow : Window
     private readonly LogsPage _logsPage;
     private readonly PlayersPage _playersPage;
     private readonly SettingsPage _settingsPage;
+    private readonly EconomyPage _economyPage;
+    private readonly XmlEditorPage _xmlEditorPage;
     private readonly TrayIcon _tray;
     private bool _exitRequested;
     private bool _trayHintShown;
@@ -45,6 +47,9 @@ public partial class MainWindow : Window
         _logsPage = new LogsPage();
         _playersPage = new PlayersPage();
         _settingsPage = new SettingsPage();
+        _economyPage = new EconomyPage();
+        _xmlEditorPage = new XmlEditorPage();
+        _economyPage.EditRequested += OpenXmlEditor;
 
         // Icône près de l'horloge, et démarrage réduit quand Windows lance l'application.
         _tray = new TrayIcon(ShowFromTray, ExitApplication);
@@ -89,6 +94,8 @@ public partial class MainWindow : Window
             "backups" => _backupsPage,
             "players" => _playersPage,
             "settings" => _settingsPage,
+            "economy" => _economyPage,
+            "xml" => _xmlEditorPage,
             "logs" => _logsPage,
             "updates" => _updatePage,
             _ => _installPage,
@@ -103,6 +110,8 @@ public partial class MainWindow : Window
         if (tag == "logs") _logsPage.Refresh();
         if (tag == "players") _playersPage.Refresh();
         if (tag == "settings") _settingsPage.Refresh();
+        if (tag == "economy") _economyPage.Refresh();
+        if (tag == "xml") _xmlEditorPage.Refresh();
 
         // Petite animation d'apparition de la page.
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
@@ -188,9 +197,28 @@ public partial class MainWindow : Window
 
     // ===== Zone de notification =====
 
+    /// <summary>Affiche l'onglet Éditeur XML et y ouvre un fichier.</summary>
+    public void OpenXmlEditor(string path)
+    {
+        if (XmlNav.IsChecked == true) _xmlEditorPage.Refresh();
+        else XmlNav.IsChecked = true;
+        _xmlEditorPage.OpenFile(path);
+    }
+
     private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        if (_exitRequested || !AppSettings.Current.CloseToTray) return;
+        bool reallyClosing = _exitRequested || !AppSettings.Current.CloseToTray;
+        if (reallyClosing && _xmlEditorPage.HasUnsavedChanges &&
+            MessageBox.Show(this, "Un fichier ouvert dans l'éditeur XML n'est pas enregistré. Quitter quand même ?",
+                "Stryxhost Manager", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            e.Cancel = true;
+            _exitRequested = false;
+            ShowFromTray();
+            XmlNav.IsChecked = true;
+            return;
+        }
+        if (reallyClosing) return;
         e.Cancel = true;
         Hide();
         if (_trayHintShown) return;
@@ -211,7 +239,8 @@ public partial class MainWindow : Window
     {
         _exitRequested = true;
         Close();
-        Application.Current.Shutdown();
+        // Fermeture annulée (fichier non enregistré dans l'éditeur) : on reste ouvert.
+        if (_exitRequested) Application.Current.Shutdown();
     }
 
     private void OnUpdateAvailabilityChanged(bool available)

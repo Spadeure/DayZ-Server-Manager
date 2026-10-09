@@ -44,16 +44,17 @@
                 </Grid>
 
                 <DockPanel Margin="0,14,0,0">
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <WrapPanel DockPanel.Dock="Right">
                         <Button Content="Ouvrir le fichier" Style="{StaticResource SmallButton}" Click="OpenFile_Click" />
                         <Button Content="Ouvrir le dossier" Style="{StaticResource SmallButton}" Margin="8,0,0,0"
                                 Click="OpenFolder_Click" />
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="FileText" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
-                        <TextBlock x:Name="ErrorsText" FontSize="12" FontWeight="SemiBold" Margin="14,0,0,0"
-                                   Foreground="{StaticResource WarnBrush}" VerticalAlignment="Center" />
-                    </StackPanel>
+                    </WrapPanel>
+                    <DockPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                        <TextBlock x:Name="ErrorsText" DockPanel.Dock="Right" FontSize="12" FontWeight="SemiBold"
+                                   Margin="14,0,0,0" Foreground="{StaticResource WarnBrush}" VerticalAlignment="Center" />
+                        <TextBlock x:Name="FileText" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    </DockPanel>
                 </DockPanel>
             </StackPanel>
         </Border>
@@ -90,8 +91,14 @@
                     </ListBox>
                 </Border>
 
-                <DockPanel Grid.Row="1" Margin="0,14,0,0">
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <WrapPanel Grid.Row="1" Margin="0,14,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,6">
+                        <CheckBox x:Name="FollowToggle" Content="Suivre en direct" Style="{StaticResource ToggleSwitch}"
+                                  FontSize="13" IsChecked="True" />
+                        <TextBlock x:Name="CountText" Style="{StaticResource MutedText}" Margin="16,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,24,6">
                         <CheckBox x:Name="CleanToggle" Content="Supprimer les journaux de plus de"
                                   ToolTip="Mets 0 pour supprimer tous les journaux"
                                   Style="{StaticResource ToggleSwitch}" FontSize="13" Click="CleanOptions_Changed" />
@@ -102,13 +109,7 @@
                         <Button Content="Nettoyer maintenant" Style="{StaticResource SmallButton}" Margin="12,0,0,0"
                                 Click="CleanNow_Click" />
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <CheckBox x:Name="FollowToggle" Content="Suivre en direct" Style="{StaticResource ToggleSwitch}"
-                                  FontSize="13" IsChecked="True" />
-                        <TextBlock x:Name="CountText" Style="{StaticResource MutedText}" Margin="16,0,0,0"
-                                   VerticalAlignment="Center" />
-                    </StackPanel>
-                </DockPanel>
+                </WrapPanel>
             </Grid>
         </Border>
     </Grid>

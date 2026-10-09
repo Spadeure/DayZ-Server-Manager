@@ -27,6 +27,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Éditeur de texte avec coloration (onglet Éditeur XML) -->
+    <PackageReference Include="AvalonEdit" Version="6.3.0.90" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\icon.png" />
     <Resource Include="Assets\logo.png" />

@@ -72,6 +72,8 @@
                             </StackPanel>
                         </Border>
 
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                      Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="MENU" FontSize="11" FontWeight="SemiBold"
                                        Foreground="{StaticResource MutedBrush}" Margin="12,0,0,10" />
@@ -85,6 +87,10 @@
                                          Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Mods" Tag="mods"
                                          Checked="Nav_Checked" />
+                            <RadioButton Style="{StaticResource NavButton}" Content="Économie" Tag="economy"
+                                         Checked="Nav_Checked" />
+                            <RadioButton x:Name="XmlNav" Style="{StaticResource NavButton}" Content="Éditeur XML" Tag="xml"
+                                         Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Pare-feu" Tag="firewall"
                                          Checked="Nav_Checked" />
                             <RadioButton Style="{StaticResource NavButton}" Content="Sauvegardes" Tag="backups"
@@ -96,6 +102,7 @@
                             <RadioButton x:Name="UpdatesNav" Style="{StaticResource NavButton}" Content="Mises à jour"
                                          Tag="updates" Checked="Nav_Checked" />
                         </StackPanel>
+                        </ScrollViewer>
                     </DockPanel>
                 </Border>
 

@@ -81,13 +81,43 @@ public sealed class SteamCmdService
     // ===== Téléchargement du serveur =====
 
     /// <summary>Installe ou met à jour le serveur. Sans mot de passe, SteamCMD réutilise la connexion enregistrée.</summary>
-    public Task<SteamCmdResult> DownloadServerAsync(string user, string? password, CancellationToken ct)
+    public async Task<SteamCmdResult> DownloadServerAsync(string user, string? password, CancellationToken ct)
     {
         Directory.CreateDirectory(ServerFolder);
         _lastStage = "";
+
+        // Une mise à jour remet serverDZ.cfg comme à l'origine : on garde une copie pour la remettre après.
+        var configPath = Path.Combine(ServerFolder, "serverDZ.cfg");
+        string? savedConfig = null;
+        try { if (File.Exists(configPath)) savedConfig = File.ReadAllText(configPath); }
+        catch { /* fichier illisible */ }
+
+        // « validate » (vérification complète) seulement à la première installation :
+        // ensuite, il écraserait les fichiers que tu as modifiés.
+        bool firstInstall = !File.Exists(Path.Combine(ServerFolder, "DayZServer_x64.exe"));
         var login = string.IsNullOrEmpty(password) ? Quote(user) : $"{Quote(user)} {Quote(password)}";
-        var args = $"+force_install_dir {Quote(ServerFolder)} +login {login} +app_update {ServerAppId} validate +quit";
-        return RunAsync(args, ct);
+        var args = $"+force_install_dir {Quote(ServerFolder)} +login {login} +app_update {ServerAppId}" +
+                   (firstInstall ? " validate" : "") + " +quit";
+
+        try
+        {
+            return await RunAsync(args, ct);
+        }
+        finally
+        {
+            if (savedConfig != null)
+            {
+                try
+                {
+                    File.WriteAllText(configPath, savedConfig);
+                    Output?.Invoke("Ta configuration (serverDZ.cfg) a été conservée.");
+                }
+                catch
+                {
+                    Output?.Invoke("Attention : impossible de remettre ta configuration serverDZ.cfg, vérifie l'onglet Configuration.");
+                }
+            }
+        }
     }
 
     /// <summary>Numéro de la dernière version publiée par Bohemia (null si inconnu).</summary>

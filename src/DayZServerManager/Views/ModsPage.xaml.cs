@@ -85,13 +85,11 @@ public partial class ModsPage : UserControl
 
     private void Tab_Checked(object sender, RoutedEventArgs e)
     {
-        if (ResultsScroll == null || InstalledScroll == null) return;
+        if (ResultsScroll == null || InstalledScroll == null || ActionsPanel == null) return;
         bool showResults = ResultsTab.IsChecked == true;
         ResultsScroll.Visibility = showResults ? Visibility.Visible : Visibility.Collapsed;
         InstalledScroll.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
-        UpdateAllButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
-        DetectButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
-        ShareButton.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
+        ActionsPanel.Visibility = showResults ? Visibility.Collapsed : Visibility.Visible;
     }
 
     // ===== Actions =====
