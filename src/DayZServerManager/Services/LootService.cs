@@ -107,6 +107,9 @@ public sealed class LootItem : INotifyPropertyChanged
     // ===== Affichage =====
 
     public bool IsModified => Take() != _original;
+    /// <summary>Valeurs telles qu'elles sont dans le fichier (base du multiplicateur).</summary>
+    public int FileNominal => _original.Nominal;
+    public int FileMin => _original.Min;
     public bool NominalModified => _nominal != _original.Nominal;
     public bool MinModified => _min != _original.Min;
     public bool LifetimeModified => _lifetime != _original.Lifetime;

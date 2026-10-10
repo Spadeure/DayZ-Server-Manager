@@ -34,6 +34,7 @@ public partial class LootPage : UserControl
     private bool _docked = true;
     private bool _overlayOpen;
     private bool? _wideRows;
+    private bool _bulkEditing; // évite de tout recalculer à chaque objet pendant une modification groupée
 
     // Éléments de la fiche mis à jour sans la reconstruire (pour ne pas perdre la saisie en cours).
     private readonly Dictionary<string, TextBox> _fieldBoxes = new();
@@ -209,12 +210,7 @@ public partial class LootPage : UserControl
         var tier = Selected(TierFilter);
         var modifiedOnly = ModifiedOnly.IsChecked == true;
 
-        IEnumerable<LootItem> list = _current.Items.Where(i =>
-            (query.Length == 0 || i.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) &&
-            (category.Length == 0 || i.Category == category) &&
-            (usage.Length == 0 || i.Usage.Contains(usage)) &&
-            (tier.Length == 0 || i.Value.Contains(tier)) &&
-            (!modifiedOnly || i.IsModified));
+        IEnumerable<LootItem> list = _current.Items.Where(i => Matches(i, query, category, usage, tier, modifiedOnly));
 
         list = _sortKey switch
         {
@@ -232,14 +228,92 @@ public partial class LootPage : UserControl
         TotalText.Text = $"{items.Count} objet(s) affiché(s) sur {_current.Items.Count} · {total} exemplaires visés sur la carte";
         AllBox.IsChecked = items.Count > 0 && items.All(i => i.IsChecked);
 
+        UpdateMultiplierHint();
         if (items.Count == 0 && _current.Items.Count > 0) ShowEmpty("Aucun objet ne correspond à la recherche.");
         else EmptyText.Visibility = Visibility.Collapsed;
+    }
+
+    private static bool Matches(LootItem i, string query, string category, string usage, string tier, bool modifiedOnly) =>
+        (query.Length == 0 || i.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) &&
+        (category.Length == 0 || i.Category == category) &&
+        (usage.Length == 0 || i.Usage.Contains(usage)) &&
+        (tier.Length == 0 || i.Value.Contains(tier)) &&
+        (!modifiedOnly || i.IsModified);
+
+    private bool FiltersActive() =>
+        SearchBox.Text.Trim().Length > 0 || Selected(CategoryFilter).Length > 0 || Selected(UsageFilter).Length > 0 ||
+        Selected(TierFilter).Length > 0 || ModifiedOnly.IsChecked == true;
+
+    /// <summary>Objets concernés par le multiplicateur : ceux affichés, ou tous les fichiers avec les mêmes filtres.</summary>
+    private List<LootItem> MultiplierTargets()
+    {
+        if (AllFilesBox.IsChecked != true) return ItemsList.ItemsSource as List<LootItem> ?? new List<LootItem>();
+        var query = SearchBox.Text.Trim();
+        var category = Selected(CategoryFilter);
+        var usage = Selected(UsageFilter);
+        var tier = Selected(TierFilter);
+        var modifiedOnly = ModifiedOnly.IsChecked == true;
+        return _files.SelectMany(f => f.Items).Where(i => Matches(i, query, category, usage, tier, modifiedOnly)).ToList();
+    }
+
+    private void UpdateMultiplierHint()
+    {
+        var count = MultiplierTargets().Count;
+        var where = AllFilesBox.IsChecked == true ? "dans tous les fichiers" : "du fichier affiché";
+        MultiplierHint.Text = FiltersActive()
+            ? $"S'applique aux {count} objet(s) filtrés {where}."
+            : $"S'applique aux {count} objet(s) {where}.";
+    }
+
+    private void AllFiles_Click(object sender, RoutedEventArgs e) => UpdateMultiplierHint();
+
+    /// <summary>
+    /// x2, x4, x6 : la quantité et le minimum valent N fois ceux du fichier (pas de cumul : x2 puis x4 donne x4).
+    /// x1 remet les valeurs du fichier. Chaque objet reste modifiable ensuite à la main.
+    /// </summary>
+    private void Multiplier_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string tag } || !int.TryParse(tag, out var factor)) return;
+        FocusManager.SetFocusedElement(this, null);
+        Keyboard.ClearFocus();
+
+        var items = MultiplierTargets();
+        if (items.Count == 0)
+        {
+            ShowStatus("Aucun objet à modifier.", "WarnBrush");
+            return;
+        }
+
+        _bulkEditing = true;
+        try
+        {
+            foreach (var item in items)
+            {
+                item.Nominal = item.FileNominal * factor;
+                item.Min = item.FileMin * factor;
+            }
+        }
+        finally { _bulkEditing = false; }
+
+        AfterBulkEdit();
+        ShowStatus(factor == 1
+            ? $"Quantités remises comme dans le fichier pour {items.Count} objet(s)."
+            : $"Loot x{factor} : quantité et minimum multipliés par {factor} pour {items.Count} objet(s). Pense à enregistrer.",
+            "CyanBrush");
+    }
+
+    private void AfterBulkEdit()
+    {
+        UpdateChanges();
+        RefreshFileCounts();
+        if (_selected != null) UpdateDetailValues();
     }
 
     // ===== Changements =====
 
     private void Item_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (_bulkEditing) return;
         if (e.PropertyName == nameof(LootItem.IsChecked))
         {
             UpdateBulk();
@@ -260,7 +334,10 @@ public partial class LootPage : UserControl
 
     private void Undo_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var item in _files.SelectMany(f => f.Items).Where(i => i.IsModified).ToList()) item.Reset();
+        _bulkEditing = true;
+        try { foreach (var item in _files.SelectMany(f => f.Items).Where(i => i.IsModified).ToList()) item.Reset(); }
+        finally { _bulkEditing = false; }
+        AfterBulkEdit();
         ApplyFilter();
         BuildDetail();
         ShowStatus("Tous les changements ont été annulés.", "CyanBrush");
@@ -331,11 +408,17 @@ public partial class LootPage : UserControl
             return;
         }
         var items = CheckedItems();
-        foreach (var item in items)
+        _bulkEditing = true;
+        try
         {
-            item.Nominal = (int)Math.Round(item.Nominal * factor);
-            item.Min = (int)Math.Round(item.Min * factor);
+            foreach (var item in items)
+            {
+                item.Nominal = (int)Math.Round(item.Nominal * factor);
+                item.Min = (int)Math.Round(item.Min * factor);
+            }
         }
+        finally { _bulkEditing = false; }
+        AfterBulkEdit();
         ShowStatus($"Quantité et minimum multipliés par {factor.ToString(CultureInfo.CurrentCulture)} pour {items.Count} objet(s).", "CyanBrush");
     }
 
@@ -347,7 +430,10 @@ public partial class LootPage : UserControl
             return;
         }
         var items = CheckedItems();
-        foreach (var item in items) item.Lifetime = (int)Math.Round(hours * 3600);
+        _bulkEditing = true;
+        try { foreach (var item in items) item.Lifetime = (int)Math.Round(hours * 3600); }
+        finally { _bulkEditing = false; }
+        AfterBulkEdit();
         ShowStatus($"Durée de vie réglée sur {hours.ToString(CultureInfo.CurrentCulture)} h pour {items.Count} objet(s).", "CyanBrush");
     }
 

@@ -213,7 +213,29 @@
         </WrapPanel>
 
         <!-- ===== Modifications groupées ===== -->
-        <Border x:Name="BulkBar" Grid.Row="3" Background="{StaticResource AccentSoftBrush}"
+        <StackPanel Grid.Row="3">
+        <Border Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="14,8" Margin="0,0,0,10">
+            <WrapPanel>
+                <StackPanel Margin="0,4,18,4" VerticalAlignment="Center">
+                    <TextBlock Text="MULTIPLICATEUR DE LOOT" FontFamily="{StaticResource Orbitron}" FontSize="12"
+                               Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock x:Name="MultiplierHint" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                               Margin="0,3,0,0" />
+                </StackPanel>
+                <Button Content="x1" Tag="1" ToolTip="Revenir aux quantités du fichier" Style="{StaticResource SmallButton}"
+                        MinWidth="52" Margin="0,4,8,4" Click="Multiplier_Click" />
+                <Button Content="x2" Tag="2" Style="{StaticResource SmallButton}" MinWidth="52" Margin="0,4,8,4"
+                        Click="Multiplier_Click" />
+                <Button Content="x4" Tag="4" Style="{StaticResource SmallButton}" MinWidth="52" Margin="0,4,8,4"
+                        Click="Multiplier_Click" />
+                <Button Content="x6" Tag="6" Style="{StaticResource SmallButton}" MinWidth="52" Margin="0,4,18,4"
+                        Click="Multiplier_Click" />
+                <CheckBox x:Name="AllFilesBox" Content="Tous les fichiers" Style="{StaticResource ToggleSwitch}"
+                          FontSize="13" Margin="0,4,0,4" VerticalAlignment="Center" Click="AllFiles_Click" />
+            </WrapPanel>
+        </Border>
+        <Border x:Name="BulkBar" Background="{StaticResource AccentSoftBrush}"
                 BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="10" Padding="14,8"
                 Margin="0,0,0,10" Visibility="Collapsed">
             <WrapPanel>
@@ -236,6 +258,7 @@
                         Click="ClearSelection_Click" />
             </WrapPanel>
         </Border>
+        </StackPanel>
 
         <!-- ===== Liste + fiche de l'objet ===== -->
         <Grid x:Name="WorkGrid" Grid.Row="4" SizeChanged="Work_SizeChanged">
