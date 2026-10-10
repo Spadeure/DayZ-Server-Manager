@@ -150,6 +150,21 @@ public partial class UpdatePage : UserControl
         };
         DockPanel.SetDock(date, Dock.Right);
         header.Children.Add(date);
+
+        // Retour en arrière : réinstaller une ancienne version en un clic.
+        if (release.Version < current && release.DownloadUrl.Length > 0)
+        {
+            var rollback = new Button
+            {
+                Content = "Revenir à cette version",
+                Style = (Style)Application.Current.FindResource("SmallButton"),
+                Margin = new Thickness(0, 0, 14, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            rollback.Click += async (_, _) => await RollbackAsync(release);
+            DockPanel.SetDock(rollback, Dock.Right);
+            header.Children.Add(rollback);
+        }
         panel.Children.Add(header);
 
         // Lignes du patch note : « • texte » devient une puce, le reste un sous-titre.
@@ -201,7 +216,26 @@ public partial class UpdatePage : UserControl
 
     private async void Update_Click(object sender, RoutedEventArgs e)
     {
-        if (_latest == null || _busy) return;
+        if (_latest == null) return;
+        await InstallAsync(_latest);
+    }
+
+    private async Task RollbackAsync(ReleaseInfo release)
+    {
+        if (_busy) return;
+        var answer = MessageBox.Show(Window.GetWindow(this),
+            $"Revenir à la version {release.Version.ToString(3)} ?\n\n" +
+            "L'application va télécharger cette version puis redémarrer. " +
+            "Tes réglages et ton serveur ne sont pas touchés.\n\n" +
+            "Tu pourras toujours remettre la dernière version plus tard avec « Mettre à jour ».",
+            "Stryxhost Manager", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.Yes) return;
+        await InstallAsync(release);
+    }
+
+    private async Task InstallAsync(ReleaseInfo release)
+    {
+        if (_busy) return;
         _busy = true;
         CheckButton.IsEnabled = false;
         UpdateButton.IsEnabled = false;
@@ -216,7 +250,7 @@ public partial class UpdatePage : UserControl
 
         try
         {
-            await UpdateService.DownloadAndInstallAsync(_latest, progress, CancellationToken.None);
+            await UpdateService.DownloadAndInstallAsync(release, progress, CancellationToken.None);
             DownloadText.Text = "Redémarrage de l'application…";
             Application.Current.Shutdown();
         }
@@ -225,7 +259,7 @@ public partial class UpdatePage : UserControl
             DownloadText.Text = $"Échec de la mise à jour : {ex.Message}";
             _busy = false;
             CheckButton.IsEnabled = true;
-            UpdateButton.IsEnabled = true;
+            UpdateButton.IsEnabled = _latest != null && _latest.Version > UpdateService.CurrentVersion;
         }
     }
 

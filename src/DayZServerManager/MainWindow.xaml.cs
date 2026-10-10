@@ -24,6 +24,7 @@ public partial class MainWindow : Window
     private readonly SettingsPage _settingsPage;
     private readonly EconomyPage _economyPage;
     private readonly XmlEditorPage _xmlEditorPage;
+    private readonly LootPage _lootPage;
     private readonly TrayIcon _tray;
     private bool _exitRequested;
     private bool _trayHintShown;
@@ -49,6 +50,7 @@ public partial class MainWindow : Window
         _settingsPage = new SettingsPage();
         _economyPage = new EconomyPage();
         _xmlEditorPage = new XmlEditorPage();
+        _lootPage = new LootPage();
         _economyPage.EditRequested += OpenXmlEditor;
 
         // Le tableau de bord et les paramètres peuvent ouvrir d'autres pages.
@@ -129,6 +131,7 @@ public partial class MainWindow : Window
             "settings" => _settingsPage,
             "economy" => _economyPage,
             "xml" => _xmlEditorPage,
+            "loot" => _lootPage,
             "logs" => _logsPage,
             "updates" => _updatePage,
             _ => _installPage,
@@ -145,6 +148,7 @@ public partial class MainWindow : Window
         if (tag == "settings") _settingsPage.Refresh();
         if (tag == "economy") _economyPage.Refresh();
         if (tag == "xml") _xmlEditorPage.Refresh();
+        if (tag == "loot") _lootPage.Refresh();
 
         // Petite animation d'apparition de la page.
         var ease = new QuadraticEase { EasingMode = EasingMode.EaseOut };
@@ -248,6 +252,16 @@ public partial class MainWindow : Window
             _exitRequested = false;
             ShowFromTray();
             XmlNav.IsChecked = true;
+            return;
+        }
+        if (reallyClosing && _lootPage.HasUnsavedChanges &&
+            MessageBox.Show(this, "Des modifications du loot ne sont pas enregistrées. Quitter quand même ?",
+                "Stryxhost Manager", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            e.Cancel = true;
+            _exitRequested = false;
+            ShowFromTray();
+            LootNav.IsChecked = true;
             return;
         }
         if (reallyClosing) return;

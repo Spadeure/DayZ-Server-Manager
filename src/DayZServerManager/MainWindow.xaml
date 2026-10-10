@@ -98,6 +98,8 @@
                                 <TextBlock Style="{StaticResource NavHeader}" Text="CONTENU" />
                                 <RadioButton Style="{StaticResource NavButton}" Content="Mods" Tag="mods"
                                              Checked="Nav_Checked" nav:NavProps.Icon="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16zM3.3 7L12 12L20.7 7M12 22V12" />
+                                <RadioButton x:Name="LootNav" Style="{StaticResource NavButton}" Content="Loot" Tag="loot"
+                                             Checked="Nav_Checked" nav:NavProps.Icon="M6 3h12l3 6l-9 12L3 9z M3 9h18 M9 3l3 6l3-6 M12 9v12" />
                                 <RadioButton x:Name="EconomyNav" Style="{StaticResource NavButton}" Content="Économie" Tag="economy"
                                              Checked="Nav_Checked" nav:NavProps.Icon="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                                 <RadioButton x:Name="XmlNav" Style="{StaticResource NavButton}" Content="Éditeur XML" Tag="xml"

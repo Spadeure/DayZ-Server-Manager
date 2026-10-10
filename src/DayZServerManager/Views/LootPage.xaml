@@ -1,0 +1,311 @@
+<UserControl x:Class="DayZServerManager.Views.LootPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <!-- Étiquettes de zones -->
+        <DataTemplate x:Key="UsageChip">
+            <Border Background="{StaticResource Panel2Brush}" CornerRadius="6" Padding="7,2" Margin="0,2,4,2">
+                <TextBlock Text="{Binding}" Style="{StaticResource ChipText}" />
+            </Border>
+        </DataTemplate>
+        <!-- Étiquettes de rareté -->
+        <DataTemplate x:Key="TierChip">
+            <Border Background="{StaticResource CyanSoftBrush}" CornerRadius="6" Padding="7,2" Margin="0,2,4,2">
+                <TextBlock Text="{Binding}" Style="{StaticResource ChipText}" Foreground="{StaticResource CyanBrush}" />
+            </Border>
+        </DataTemplate>
+        <!-- En-têtes de colonnes -->
+        <Style x:Key="HeaderText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="HeaderButton" TargetType="Button">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTip" Value="Trier" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter VerticalAlignment="Center" />
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- Cases à cocher sombres (lignes de la liste, comptage) -->
+        <Style TargetType="CheckBox" BasedOn="{StaticResource DarkCheck}" />
+
+        <ItemsPanelTemplate x:Key="WrapItems">
+            <WrapPanel />
+        </ItemsPanelTemplate>
+
+        <!-- Cellules quantité / minimum : en violet quand la valeur a changé -->
+        <Style x:Key="NominalCell" TargetType="TextBox" BasedOn="{StaticResource CellBox}">
+            <Setter Property="Background" Value="Transparent" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding NominalModified}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="MinCell" TargetType="TextBox" BasedOn="{StaticResource CellBox}">
+            <Setter Property="Background" Value="Transparent" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding MinModified}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                    <Setter Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="LifeText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding LifetimeModified}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="MinWarning" TargetType="TextBlock">
+            <Setter Property="Text" Value="⚠ min" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{StaticResource WarnBrush}" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="ToolTip" Value="Le minimum est plus grand que la quantité" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasMinWarning}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Ligne large : zones et rareté dans leurs colonnes -->
+        <DataTemplate x:Key="WideRow">
+            <Grid Margin="14,7">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="1.5*" />
+                    <ColumnDefinition Width="84" />
+                    <ColumnDefinition Width="84" />
+                    <ColumnDefinition Width="76" />
+                    <ColumnDefinition Width="1.3*" />
+                    <ColumnDefinition Width="120" />
+                </Grid.ColumnDefinitions>
+                <CheckBox IsChecked="{Binding IsChecked}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}" FontFamily="Consolas" FontSize="13" TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource TextBrush}" />
+                        <TextBlock Style="{StaticResource MinWarning}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding CategoryLabel}" FontSize="11" Foreground="#7D7699" Margin="0,2,0,0" />
+                </StackPanel>
+                <TextBox Grid.Column="2" Style="{StaticResource NominalCell}" HorizontalAlignment="Right"
+                         Text="{Binding Nominal, UpdateSourceTrigger=LostFocus}" />
+                <TextBox Grid.Column="3" Style="{StaticResource MinCell}" HorizontalAlignment="Right"
+                         Text="{Binding Min, UpdateSourceTrigger=LostFocus}" />
+                <TextBlock Grid.Column="4" Text="{Binding LifetimeText}" Style="{StaticResource LifeText}" Margin="12,0,0,0" />
+                <ItemsControl Grid.Column="5" ItemsSource="{Binding UsageLabels}" ItemTemplate="{StaticResource UsageChip}"
+                              ItemsPanel="{StaticResource WrapItems}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ItemsControl Grid.Column="6" ItemsSource="{Binding TierLabels}" ItemTemplate="{StaticResource TierChip}"
+                              ItemsPanel="{StaticResource WrapItems}" VerticalAlignment="Center" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- Ligne compacte : zones et rareté sous le nom -->
+        <DataTemplate x:Key="CompactRow">
+            <Grid Margin="14,7">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="30" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="78" />
+                    <ColumnDefinition Width="78" />
+                    <ColumnDefinition Width="70" />
+                </Grid.ColumnDefinitions>
+                <CheckBox IsChecked="{Binding IsChecked}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Name}" FontFamily="Consolas" FontSize="13" TextTrimming="CharacterEllipsis"
+                                   Foreground="{StaticResource TextBrush}" />
+                        <TextBlock Style="{StaticResource MinWarning}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding CategoryLabel}" FontSize="11" Foreground="#7D7699" Margin="0,2,0,2" />
+                    <WrapPanel>
+                        <ItemsControl ItemsSource="{Binding UsageLabels}" ItemTemplate="{StaticResource UsageChip}"
+                                      ItemsPanel="{StaticResource WrapItems}" />
+                        <ItemsControl ItemsSource="{Binding TierLabels}" ItemTemplate="{StaticResource TierChip}"
+                                      ItemsPanel="{StaticResource WrapItems}" />
+                    </WrapPanel>
+                </StackPanel>
+                <TextBox Grid.Column="2" Style="{StaticResource NominalCell}" HorizontalAlignment="Right"
+                         Text="{Binding Nominal, UpdateSourceTrigger=LostFocus}" />
+                <TextBox Grid.Column="3" Style="{StaticResource MinCell}" HorizontalAlignment="Right"
+                         Text="{Binding Min, UpdateSourceTrigger=LostFocus}" />
+                <TextBlock Grid.Column="4" Text="{Binding LifetimeText}" Style="{StaticResource LifeText}" Margin="12,0,0,0" />
+            </Grid>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ===== En-tête ===== -->
+        <DockPanel Grid.Row="0">
+            <WrapPanel DockPanel.Dock="Right" VerticalAlignment="Bottom">
+                <TextBlock x:Name="ChangesText" FontSize="12.5" Foreground="{StaticResource MutedBrush}"
+                           VerticalAlignment="Center" Margin="10,0,4,6" />
+                <Button x:Name="UndoButton" Content="Annuler les changements" Style="{StaticResource SecondaryButton}"
+                        Margin="10,0,0,6" Click="Undo_Click" />
+                <Button x:Name="SaveButton" Content="Enregistrer" Style="{StaticResource PrimaryButton}"
+                        Margin="10,0,0,6" Click="Save_Click" />
+            </WrapPanel>
+            <StackPanel>
+                <TextBlock Text="LOOT" Style="{StaticResource PageTitle}" />
+                <TextBlock Text="Quantités, durée de vie et zones d'apparition des objets, sans toucher au XML." FontSize="14"
+                           Foreground="{StaticResource MutedBrush}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                <TextBlock x:Name="StatusText" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Foreground="{StaticResource MutedBrush}" Visibility="Collapsed" />
+            </StackPanel>
+        </DockPanel>
+
+        <!-- ===== Fichiers ===== -->
+        <WrapPanel x:Name="FilesPanel" Grid.Row="1" Margin="0,16,0,0" />
+
+        <!-- ===== Recherche et filtres ===== -->
+        <WrapPanel Grid.Row="2" Margin="0,8,0,0">
+            <Grid Width="280" Margin="0,0,8,8">
+                <TextBox x:Name="SearchBox" Style="{StaticResource FieldBox}" FontFamily="Segoe UI" FontSize="13"
+                         Height="38" Padding="30,0,10,0" TextChanged="Filter_Changed" />
+                <Path Data="M7,0 A7,7 0 1 1 6.99,0 M12,12 L16,16" Stroke="{StaticResource MutedBrush}" StrokeThickness="1.6"
+                      Width="17" Height="17" Stretch="Uniform" HorizontalAlignment="Left" Margin="11,0,0,0"
+                      IsHitTestVisible="False" />
+                <TextBlock x:Name="SearchHint" Text="Rechercher (ex. : AKM, Beans…)" FontSize="13"
+                           Foreground="#7D7699" Margin="36,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
+            </Grid>
+            <ComboBox x:Name="CategoryFilter" Style="{StaticResource DarkCombo}" Width="190" Margin="0,0,8,8"
+                      SelectionChanged="Filter_Changed" />
+            <ComboBox x:Name="UsageFilter" Style="{StaticResource DarkCombo}" Width="170" Margin="0,0,8,8"
+                      SelectionChanged="Filter_Changed" />
+            <ComboBox x:Name="TierFilter" Style="{StaticResource DarkCombo}" Width="200" Margin="0,0,12,8"
+                      SelectionChanged="Filter_Changed" />
+            <CheckBox x:Name="ModifiedOnly" Content="Seulement les objets modifiés" Style="{StaticResource ToggleSwitch}"
+                      FontSize="13" Margin="0,0,0,8" VerticalAlignment="Center" Click="Filter_Changed" />
+        </WrapPanel>
+
+        <!-- ===== Modifications groupées ===== -->
+        <Border x:Name="BulkBar" Grid.Row="3" Background="{StaticResource AccentSoftBrush}"
+                BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" CornerRadius="10" Padding="14,8"
+                Margin="0,0,0,10" Visibility="Collapsed">
+            <WrapPanel>
+                <TextBlock x:Name="BulkCount" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,4,16,4" />
+                <StackPanel Orientation="Horizontal" Margin="0,4,16,4">
+                    <TextBlock Text="Multiplier la quantité par" Foreground="{StaticResource MutedBrush}" FontSize="12.5"
+                               VerticalAlignment="Center" />
+                    <TextBox x:Name="MultiplyBox" Text="1.5" Style="{StaticResource FieldBox}" Width="64" Height="30"
+                             Margin="8,0" HorizontalContentAlignment="Center" />
+                    <Button Content="Appliquer" Style="{StaticResource SmallButton}" Click="Multiply_Click" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,4,16,4">
+                    <TextBlock Text="Durée de vie (heures)" Foreground="{StaticResource MutedBrush}" FontSize="12.5"
+                               VerticalAlignment="Center" />
+                    <TextBox x:Name="LifetimeBox" Text="4" Style="{StaticResource FieldBox}" Width="64" Height="30"
+                             Margin="8,0" HorizontalContentAlignment="Center" />
+                    <Button Content="Appliquer" Style="{StaticResource SmallButton}" Click="BulkLifetime_Click" />
+                </StackPanel>
+                <Button Content="Désélectionner" Style="{StaticResource SmallButton}" Margin="0,4,0,4"
+                        Click="ClearSelection_Click" />
+            </WrapPanel>
+        </Border>
+
+        <!-- ===== Liste + fiche de l'objet ===== -->
+        <Grid x:Name="WorkGrid" Grid.Row="4" SizeChanged="Work_SizeChanged">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="DetailColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Style="{StaticResource Card}" Padding="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- En-têtes (cliquer pour trier) -->
+                    <Border BorderBrush="{StaticResource LineBrush}" BorderThickness="0,0,0,1">
+                        <Grid x:Name="HeaderGrid" Margin="14,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="30" />
+                                <ColumnDefinition Width="1.5*" />
+                                <ColumnDefinition x:Name="HeadQty" Width="84" />
+                                <ColumnDefinition x:Name="HeadMin" Width="84" />
+                                <ColumnDefinition x:Name="HeadLife" Width="76" />
+                                <ColumnDefinition x:Name="HeadZones" Width="1.3*" />
+                                <ColumnDefinition x:Name="HeadTiers" Width="120" />
+                            </Grid.ColumnDefinitions>
+                            <CheckBox x:Name="AllBox" VerticalAlignment="Center" Click="All_Click" ToolTip="Tout sélectionner" />
+                            <Button Grid.Column="1" Content="OBJET" Tag="name" Style="{StaticResource HeaderButton}"
+                                    Click="Sort_Click" />
+                            <Button Grid.Column="2" Content="QUANTITÉ" Tag="nominal" Style="{StaticResource HeaderButton}"
+                                    HorizontalAlignment="Right" Click="Sort_Click" />
+                            <Button Grid.Column="3" Content="MINIMUM" Tag="min" Style="{StaticResource HeaderButton}"
+                                    HorizontalAlignment="Right" Click="Sort_Click" />
+                            <Button Grid.Column="4" Content="DURÉE" Tag="lifetime" Style="{StaticResource HeaderButton}"
+                                    Margin="12,0,0,0" Click="Sort_Click" />
+                            <TextBlock x:Name="ZonesHeader" Grid.Column="5" Text="ZONES" Style="{StaticResource HeaderText}" />
+                            <TextBlock x:Name="TiersHeader" Grid.Column="6" Text="RARETÉ" Style="{StaticResource HeaderText}" />
+                        </Grid>
+                    </Border>
+
+                    <ListBox x:Name="ItemsList" Grid.Row="1" Background="Transparent" BorderThickness="0"
+                             ItemContainerStyle="{StaticResource LootRow}" SelectionMode="Single"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="True"
+                             VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                             VirtualizingPanel.ScrollUnit="Pixel"
+                             SelectionChanged="Items_SelectionChanged" PreviewKeyDown="Items_PreviewKeyDown" />
+
+                    <TextBlock x:Name="EmptyText" Grid.Row="1" Margin="16" FontSize="13" TextWrapping="Wrap"
+                               Foreground="{StaticResource MutedBrush}" Visibility="Collapsed" />
+
+                    <Border Grid.Row="2" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="14,9">
+                        <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                       Text="Quantité et minimum se modifient directement dans la liste" />
+                            <TextBlock x:Name="TotalText" FontSize="12" Foreground="{StaticResource MutedBrush}"
+                                       Margin="0,0,16,0" TextTrimming="CharacterEllipsis" />
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Fiche de l'objet (à droite, ou par-dessus la liste quand la place manque) -->
+            <Border x:Name="DetailCard" Grid.Column="1" Style="{StaticResource Card}" Padding="18,16" Margin="14,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="DetailPanel" />
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+    </Grid>
+</UserControl>
