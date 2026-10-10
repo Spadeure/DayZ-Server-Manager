@@ -211,14 +211,14 @@ public partial class BackupsPage : UserControl
     private bool CheckInstalled()
     {
         if (DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder)) return true;
-        ShowStatus("Installe d'abord le serveur depuis l'onglet Installation.", "WarnBrush");
+        ShowStatus("Installe d'abord le serveur (Paramètres → Ouvrir l'installation).", "WarnBrush");
         return false;
     }
 
     private bool CheckStopped()
     {
         if (!ServerManager.Instance.IsRunning) return true;
-        ShowStatus("Arrête d'abord le serveur (onglet Serveur) : on ne peut pas modifier la persistance pendant qu'il tourne.", "WarnBrush");
+        ShowStatus("Arrête d'abord le serveur (Tableau de bord) : on ne peut pas modifier la persistance pendant qu'il tourne.", "WarnBrush");
         return false;
     }
 

@@ -34,7 +34,7 @@ public partial class MainWindow : Window
 
         var v = Assembly.GetExecutingAssembly().GetName().Version;
         VersionText.Text = v is null ? "Version inconnue" : $"Version {v.Major}.{v.Minor}.{v.Build}";
-        BuildText.Text = v is { Major: 0 } ? "Version de test" : "Version officielle";
+        OnUpdateAvailabilityChanged(false);
 
 
         _installPage = new InstallPage();
@@ -51,6 +51,12 @@ public partial class MainWindow : Window
         _xmlEditorPage = new XmlEditorPage();
         _economyPage.EditRequested += OpenXmlEditor;
 
+        // Le tableau de bord et les paramètres peuvent ouvrir d'autres pages.
+        _serverPage.NavigateRequested += Navigate;
+        _serverPage.BadgesChanged += UpdateBadges;
+        _settingsPage.InstallRequested += () => Navigate("install");
+        _updatePage.LatestVersionChanged += version => _serverPage.SetUpdateAvailable(version);
+
         // Icône près de l'horloge, et démarrage réduit quand Windows lance l'application.
         _tray = new TrayIcon(ShowFromTray, ExitApplication);
         Closing += OnClosing;
@@ -61,7 +67,18 @@ public partial class MainWindow : Window
             ShowInTaskbar = false;
         }
         _updatePage.UpdateAvailabilityChanged += OnUpdateAvailabilityChanged;
-        ShowPage("install");
+        SetMenuCompact(AppSettings.Current.MenuCollapsed);
+
+        // Tant que le serveur n'est pas installé, on ouvre l'assistant d'installation.
+        if (DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder))
+        {
+            DashboardNav.IsChecked = true;
+            ShowPage("dashboard");
+        }
+        else
+        {
+            ShowPage("install");
+        }
 
         Loaded += async (_, _) =>
         {
@@ -83,11 +100,27 @@ public partial class MainWindow : Window
         if (sender is RadioButton { Tag: string tag }) ShowPage(tag);
     }
 
+    /// <summary>Ouvre une page (depuis le tableau de bord, les paramètres…), en cochant son onglet s'il en a un.</summary>
+    public void Navigate(string tag)
+    {
+        var item = NavPanel.Children.OfType<RadioButton>().FirstOrDefault(r => (string)r.Tag == tag);
+        if (item != null)
+        {
+            if (item.IsChecked == true) ShowPage(tag);
+            else item.IsChecked = true;
+            return;
+        }
+
+        // Pages sans onglet (installation, mises à jour) : aucun onglet n'est coché.
+        foreach (var other in NavPanel.Children.OfType<RadioButton>()) other.IsChecked = false;
+        ShowPage(tag);
+    }
+
     private void ShowPage(string tag)
     {
         PageHost.Content = tag switch
         {
-            "server" => _serverPage,
+            "dashboard" => _serverPage,
             "config" => _configPage,
             "mods" => _modsPage,
             "firewall" => _firewallPage,
@@ -103,7 +136,7 @@ public partial class MainWindow : Window
 
         if (tag == "install") _installPage.Refresh();
         if (tag == "firewall") _ = _firewallPage.RefreshAsync();
-        if (tag == "server") _serverPage.Refresh();
+        if (tag == "dashboard") _serverPage.Refresh();
         if (tag == "config") _configPage.Load();
         if (tag == "mods") _modsPage.Refresh();
         if (tag == "backups") _backupsPage.Refresh();
@@ -200,8 +233,7 @@ public partial class MainWindow : Window
     /// <summary>Affiche l'onglet Éditeur XML et y ouvre un fichier.</summary>
     public void OpenXmlEditor(string path)
     {
-        if (XmlNav.IsChecked == true) _xmlEditorPage.Refresh();
-        else XmlNav.IsChecked = true;
+        Navigate("xml");
         _xmlEditorPage.OpenFile(path);
     }
 
@@ -243,14 +275,66 @@ public partial class MainWindow : Window
         if (_exitRequested) Application.Current.Shutdown();
     }
 
+    // ===== Menu =====
+
+    private bool _updateAvailable;
+
     private void OnUpdateAvailabilityChanged(bool available)
     {
-        var v = UpdateService.CurrentVersion;
-        BuildText.Text = available ? "Mise à jour disponible !" : v.Major == 0 ? "Version de test" : "Version officielle";
-        BuildText.Foreground = (Brush)FindResource(available ? "AccentBrush" : "CyanBrush");
+        _updateAvailable = available;
+        UpdateVersionButton();
     }
 
-    private void Version_Click(object sender, System.Windows.Input.MouseButtonEventArgs e) => UpdatesNav.IsChecked = true;
+    private void UpdateVersionButton()
+    {
+        bool compact = AppSettings.Current.MenuCollapsed;
+        var v = UpdateService.CurrentVersion;
+        VersionText.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
+        BuildText.Text = compact
+            ? (_updateAvailable ? "↑" : "✓")
+            : _updateAvailable ? "Mise à jour disponible" : v.Major == 0 ? "Version de test" : "Version officielle";
+        BuildText.Foreground = (Brush)FindResource(_updateAvailable ? "AccentBrush" : "CyanBrush");
+        BuildText.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+        VersionButton.HorizontalContentAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+        VersionButton.Background = (Brush)FindResource(_updateAvailable ? "AccentSoftBrush" : "Panel2Brush");
+        VersionButton.BorderBrush = _updateAvailable ? (Brush)FindResource("AccentBrush") : Brushes.Transparent;
+        VersionButton.ToolTip = _updateAvailable ? "Une mise à jour est disponible : clique pour la voir" : $"Version {v.ToString(3)} · mises à jour";
+    }
+
+    private void Version_Click(object sender, RoutedEventArgs e) => Navigate("updates");
+
+    private void Collapse_Click(object sender, RoutedEventArgs e)
+    {
+        AppSettings.Current.MenuCollapsed = !AppSettings.Current.MenuCollapsed;
+        AppSettings.Current.Save();
+        SetMenuCompact(AppSettings.Current.MenuCollapsed);
+    }
+
+    /// <summary>Menu réduit (icônes seules) ou complet.</summary>
+    private void SetMenuCompact(bool compact)
+    {
+        MenuColumn.Width = new GridLength(compact ? 68 : 232);
+        MenuBorder.Padding = compact ? new Thickness(8, 14, 8, 14) : new Thickness(10, 14, 10, 14);
+        CollapseButton.HorizontalAlignment = compact ? HorizontalAlignment.Center : HorizontalAlignment.Right;
+        CollapseButton.ToolTip = compact ? "Agrandir le menu" : "Réduire le menu";
+        CollapseIcon.Data = Geometry.Parse(compact ? "M6 3L11 8L6 13" : "M10 3L5 8L10 13");
+
+        foreach (var child in NavPanel.Children)
+        {
+            if (child is RadioButton item) Themes.NavProps.SetCompact(item, compact);
+            // Les titres des groupes restent en place (invisibles) pour garder les espaces entre les groupes.
+            else if (child is TextBlock header) header.Visibility = compact ? Visibility.Hidden : Visibility.Visible;
+        }
+        UpdateVersionButton();
+    }
+
+    /// <summary>Compteurs du menu : joueurs connectés et fichiers d'économie en erreur.</summary>
+    private void UpdateBadges(int? players, int economyErrors)
+    {
+        Themes.NavProps.SetBadge(PlayersNav, players is > 0 ? players.Value.ToString() : "");
+        Themes.NavProps.SetBadge(EconomyNav, economyErrors > 0 ? economyErrors.ToString() : "");
+        Themes.NavProps.SetBadgeWarn(EconomyNav, true);
+    }
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 

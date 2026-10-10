@@ -143,7 +143,7 @@ public partial class ModsPage : UserControl
         if (_busy) return;
         if (!DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder))
         {
-            ShowStatus("Installe d'abord le serveur depuis l'onglet Installation.", "WarnBrush");
+            ShowStatus("Installe d'abord le serveur (Paramètres → Ouvrir l'installation).", "WarnBrush");
             return;
         }
         try
@@ -181,7 +181,7 @@ public partial class ModsPage : UserControl
         var mainFolder = AppSettings.Current.ServerFolder;
         if (!DependencyChecker.IsServerInstalled(mainFolder))
         {
-            ShowStatus("Installe d'abord le serveur depuis l'onglet Installation.", "WarnBrush");
+            ShowStatus("Installe d'abord le serveur (Paramètres → Ouvrir l'installation).", "WarnBrush");
             return;
         }
 

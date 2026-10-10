@@ -11,7 +11,7 @@
                 <StackPanel>
                     <TextBlock Text="SERVEUR NON INSTALLÉ" Style="{StaticResource SectionTitle}"
                                Foreground="{StaticResource WarnBrush}" />
-                    <TextBlock Text="Installe d'abord le serveur depuis l'onglet Installation : le fichier serverDZ.cfg sera alors disponible."
+                    <TextBlock Text="Installe d'abord le serveur (Paramètres → Ouvrir l'installation) : le fichier serverDZ.cfg sera alors disponible."
                                Style="{StaticResource MutedText}" FontSize="13" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>

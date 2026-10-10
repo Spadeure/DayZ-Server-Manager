@@ -92,6 +92,9 @@ public class AppSettings
     /// <summary>Le bouton Fermer réduit l'application près de l'horloge.</summary>
     public bool CloseToTray { get; set; } = true;
 
+    /// <summary>Menu réduit aux icônes.</summary>
+    public bool MenuCollapsed { get; set; }
+
     /// <summary>Noms associés aux SteamID de la whitelist et de la file prioritaire.</summary>
     public Dictionary<string, string> SteamNames { get; set; } = new();
 

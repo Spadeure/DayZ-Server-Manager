@@ -13,6 +13,9 @@ public partial class UpdatePage : UserControl
     /// <summary>Prévient la fenêtre principale quand une mise à jour est (ou n'est plus) disponible.</summary>
     public event Action<bool>? UpdateAvailabilityChanged;
 
+    /// <summary>Numéro de la nouvelle version disponible (null s'il n'y en a pas).</summary>
+    public event Action<string?>? LatestVersionChanged;
+
     public UpdatePage()
     {
         InitializeComponent();
@@ -41,6 +44,7 @@ public partial class UpdatePage : UserControl
                 LatestText.Text = "—";
                 StatusText.Text = "Aucune version publiée pour le moment.";
                 UpdateAvailabilityChanged?.Invoke(false);
+                LatestVersionChanged?.Invoke(null);
                 return;
             }
 
@@ -50,6 +54,7 @@ public partial class UpdatePage : UserControl
             StatusText.Foreground = Res(available ? "AccentBrush" : "CyanBrush");
             UpdateButton.IsEnabled = available;
             UpdateAvailabilityChanged?.Invoke(available);
+            LatestVersionChanged?.Invoke(available ? _latest.Version.ToString(3) : null);
         }
         catch (Exception ex)
         {

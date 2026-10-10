@@ -3,64 +3,108 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using DayZServerManager.Services;
 
 namespace DayZServerManager.Views;
 
+/// <summary>Tableau de bord : état du serveur, ressources, points à surveiller, joueurs et activité.</summary>
 public partial class ServerPage : UserControl
 {
+    private record Alert(string Brush, string Title, string Sub, string? Action = null, string? Target = null);
+
     private readonly DispatcherTimer _clock = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool _busy;
     private int _ticks;
+
+    // Processeur du serveur
     private int _lastPid;
     private TimeSpan _lastCpuTime;
     private DateTime _lastSample;
+
+    // Joueurs
+    private int? _playerCount;
+    private int _peak;
+    private DateTime _peakDay = DateTime.Today;
+    private bool _loadingPlayers;
+
+    // Points à surveiller (les vérifications longues sont gardées 5 minutes)
+    private string? _updateVersion;
+    private int _economyErrors;
+    private bool? _firewallOpen;
+    private DateTime _slowChecksAt = DateTime.MinValue;
+    private bool _checking;
+
+    /// <summary>Demande à la fenêtre principale d'ouvrir une page (« players », « economy », « install »…).</summary>
+    public event Action<string>? NavigateRequested;
+
+    /// <summary>Compteurs du menu : joueurs connectés, fichiers d'économie en erreur.</summary>
+    public event Action<int?, int>? BadgesChanged;
 
     public ServerPage()
     {
         InitializeComponent();
 
-        var settings = AppSettings.Current;
-        AutoRestartToggle.IsChecked = settings.AutoRestart;
-        ScheduledToggle.IsChecked = settings.ScheduledRestart;
-        WarnToggle.IsChecked = settings.WarnBeforeRestart;
-        HoursBox.Text = settings.RestartHours.ToString();
-
         var manager = ServerManager.Instance;
         manager.Log += message => Dispatcher.InvokeAsync(() => Log(message));
-        manager.StatusChanged += () => Dispatcher.InvokeAsync(UpdateStatus);
+        manager.StatusChanged += () => Dispatcher.InvokeAsync(() =>
+        {
+            UpdateStatus();
+            _ = UpdatePlayersAsync();
+        });
 
         _clock.Tick += (_, _) =>
         {
+            _ticks++;
             UpdateUptime();
-            if (++_ticks % 2 == 0) UpdateResources();
+            if (_ticks % 2 == 0) UpdateResources();
             if (_ticks % 10 == 0) _ = UpdatePlayersAsync();
+            if (_ticks % 60 == 0) _ = UpdateAlertsAsync();
         };
         _clock.Start();
 
+        Log("Bienvenue dans Stryxhost Manager, le gestionnaire de serveurs DayZ.");
         manager.AttachToRunning();
         UpdateStatus();
         UpdateResources();
         _ = UpdatePlayersAsync();
+        _ = UpdateAlertsAsync();
     }
 
-    /// <summary>Remet à jour l'affichage (appelé à chaque ouverture de l'onglet).</summary>
-    public void Refresh() => UpdateStatus();
+    /// <summary>Remet à jour toute la page (appelé à chaque ouverture de l'onglet).</summary>
+    public void Refresh()
+    {
+        UpdateStatus();
+        _ = UpdatePlayersAsync();
+        _ = UpdateAlertsAsync();
+    }
+
+    /// <summary>Une nouvelle version de l'application est disponible (null : aucune).</summary>
+    public void SetUpdateAvailable(string? version)
+    {
+        _updateVersion = version;
+        _ = UpdateAlertsAsync();
+    }
 
     // ===== Actions =====
 
-    private async void Start_Click(object sender, RoutedEventArgs e)
+    private async void Start_Click(object sender, RoutedEventArgs e) =>
+        await RunAsync(() => ServerManager.Instance.StartAsync());
+
+    private async void Stop_Click(object sender, RoutedEventArgs e) =>
+        await RunAsync(() => ServerManager.Instance.StopAsync());
+
+    private async void Restart_Click(object sender, RoutedEventArgs e) =>
+        await RunAsync(() => ServerManager.Instance.RestartAsync());
+
+    private async Task RunAsync(Func<Task> action)
     {
         if (_busy) return;
-        if (!DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder))
-        {
-            Log("Installe d'abord le serveur depuis l'onglet Installation.");
-            return;
-        }
         _busy = true;
         UpdateStatus();
-        try { await ServerManager.Instance.StartAsync(); }
+        try { await action(); }
+        catch (Exception ex) { Log($"Erreur : {ex.Message}"); }
         finally
         {
             _busy = false;
@@ -68,58 +112,9 @@ public partial class ServerPage : UserControl
         }
     }
 
-    private async void Stop_Click(object sender, RoutedEventArgs e)
-    {
-        if (_busy) return;
-        _busy = true;
-        UpdateStatus();
-        try { await ServerManager.Instance.StopAsync(); }
-        finally
-        {
-            _busy = false;
-            UpdateStatus();
-        }
-    }
+    private void Install_Click(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("install");
 
-    private async void Restart_Click(object sender, RoutedEventArgs e)
-    {
-        if (_busy) return;
-        _busy = true;
-        UpdateStatus();
-        try { await ServerManager.Instance.RestartAsync(); }
-        finally
-        {
-            _busy = false;
-            UpdateStatus();
-        }
-    }
-
-    private void Options_Changed(object sender, RoutedEventArgs e) => SaveOptions();
-
-    private void Hours_LostFocus(object sender, RoutedEventArgs e) => SaveOptions();
-
-    private void SaveOptions()
-    {
-        var settings = AppSettings.Current;
-        settings.AutoRestart = AutoRestartToggle.IsChecked == true;
-        settings.ScheduledRestart = ScheduledToggle.IsChecked == true;
-        settings.WarnBeforeRestart = WarnToggle.IsChecked == true;
-        if (int.TryParse(HoursBox.Text.Trim(), out var hours) && hours >= 1 && hours <= 48)
-            settings.RestartHours = hours;
-        else
-            HoursBox.Text = settings.RestartHours.ToString();
-        settings.Save();
-    }
-
-    private void LaunchSettings_Click(object sender, RoutedEventArgs e)
-    {
-        var window = new LaunchWindow { Owner = Window.GetWindow(this) };
-        if (window.ShowDialog() != true) return;
-        Log(ServerManager.Instance.IsRunning
-            ? "Paramètres de lancement enregistrés : ils seront appliqués au prochain redémarrage."
-            : "Paramètres de lancement enregistrés.");
-        UpdateStatus();
-    }
+    private void AllPlayers_Click(object sender, RoutedEventArgs e) => NavigateRequested?.Invoke("players");
 
     private void OpenLogs_Click(object sender, RoutedEventArgs e)
     {
@@ -132,89 +127,80 @@ public partial class ServerPage : UserControl
         Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
     }
 
-    // ===== Affichage =====
+    // ===== État =====
 
     private void UpdateStatus()
     {
-        var manager = ServerManager.Instance;
         bool installed = DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder);
-        bool running = manager.IsRunning;
+        bool running = ServerManager.Instance.IsRunning;
 
         StatusText.Text = !installed ? "NON INSTALLÉ" : running ? "EN LIGNE" : "HORS LIGNE";
-        StatusText.Foreground = Res(running ? "CyanBrush" : installed ? "TextBrush" : "WarnBrush");
-        StatusDot.Fill = Res(running ? "CyanBrush" : installed ? "LineBrush" : "WarnBrush");
+        var statusBrush = Res(running ? "CyanBrush" : installed ? "MutedBrush" : "WarnBrush");
+        StatusText.Foreground = statusBrush;
+        StatusDot.Fill = statusBrush;
+        StatusDot.Effect = running
+            ? new DropShadowEffect { Color = Color.FromRgb(0x2F, 0xE3, 0xF2), BlurRadius = 10, ShadowDepth = 0, Opacity = 0.9 }
+            : null;
 
-        var settings = AppSettings.Current;
-        int activeMods = settings.Mods.Count(m => m.Enabled);
-        InfoText.Text = $"Port de jeu : {settings.GamePort} · Mods actifs : {activeMods}";
+        StartButton.Visibility = installed && !running ? Visibility.Visible : Visibility.Collapsed;
+        RestartButton.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+        StopButton.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
+        InstallButton.Visibility = installed ? Visibility.Collapsed : Visibility.Visible;
+        StartButton.IsEnabled = RestartButton.IsEnabled = StopButton.IsEnabled = !_busy;
 
-        StartButton.IsEnabled = installed && !running && !_busy;
-        StopButton.IsEnabled = running && !_busy;
-        RestartButton.IsEnabled = running && !_busy;
+        SubtitleText.Text = BuildSubtitle(installed);
         UpdateUptime();
+    }
+
+    private static string BuildSubtitle(bool installed)
+    {
+        if (!installed) return "Installe le serveur pour commencer.";
+        var parts = new List<string>();
+        try
+        {
+            var path = Path.Combine(ServerManager.ServerFolder, "serverDZ.cfg");
+            if (File.Exists(path))
+            {
+                var config = ServerConfigFile.Load(path);
+                var name = config.Get("hostname");
+                if (!string.IsNullOrWhiteSpace(name)) parts.Add(name);
+                var template = config.Get("template");
+                if (!string.IsNullOrWhiteSpace(template)) parts.Add(BackupService.MapName(template));
+            }
+        }
+        catch
+        {
+            // Configuration illisible : sous-titre réduit.
+        }
+        parts.Add(AppSettings.Current.ServerBranch == "experimental" ? "version expérimentale" : "version stable");
+        return string.Join(" · ", parts);
     }
 
     private void UpdateUptime()
     {
-        var started = ServerManager.Instance.StartedAt;
-        if (started == null || !ServerManager.Instance.IsRunning)
+        var manager = ServerManager.Instance;
+        if (manager.StartedAt == null || !manager.IsRunning)
         {
-            UptimeText.Text = "Le serveur n'est pas lancé.";
-            return;
-        }
-        var up = DateTime.Now - started.Value;
-        UptimeText.Text = $"En ligne depuis {(int)up.TotalHours} h {up.Minutes:00} min {up.Seconds:00} s";
-    }
-
-    // ===== Joueurs et FPS =====
-
-    private async Task UpdatePlayersAsync()
-    {
-        if (!ServerManager.Instance.IsRunning)
-        {
-            PlayersText.Text = "";
+            UptimeText.Text = DependencyChecker.IsServerInstalled(AppSettings.Current.ServerFolder)
+                ? "Le serveur n'est pas lancé."
+                : "Assistant d'installation disponible.";
             return;
         }
 
-        var info = await ServerQuery.QueryAsync(AppSettings.Current.QueryPort);
-        var fps = await Task.Run(() => ReadServerFps());
-        var players = info != null ? $"Joueurs : {info.Players} / {info.MaxPlayers}" : "Joueurs : serveur en cours de démarrage…";
-        PlayersText.Text = fps.HasValue ? $"{players} · FPS : {fps:0}" : players;
-    }
-
-    /// <summary>Dernier « Average server FPS » écrit dans le journal RPT, s'il y en a un.</summary>
-    private static double? ReadServerFps()
-    {
-        try
-        {
-            var file = LogService.GetFiles(LogKind.Rpt).FirstOrDefault();
-            if (file == null) return null;
-            using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            stream.Seek(Math.Max(0, stream.Length - 256 * 1024), SeekOrigin.Begin);
-            using var reader = new StreamReader(stream);
-            var text = reader.ReadToEnd();
-            var matches = System.Text.RegularExpressions.Regex.Matches(text, @"Average server FPS:\s*([\d.]+)");
-            if (matches.Count == 0) return null;
-            return double.TryParse(matches[^1].Groups[1].Value, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var fps) ? fps : null;
-        }
-        catch
-        {
-            return null;
-        }
+        var up = DateTime.Now - manager.StartedAt.Value;
+        var text = $"Depuis {(int)up.TotalHours} h {up.Minutes:00}";
+        var settings = AppSettings.Current;
+        if (settings.ScheduledRestart && settings.RestartHours > 0)
+            text += $" · redémarrage à {manager.StartedAt.Value.AddHours(settings.RestartHours):HH:mm}";
+        UptimeText.Text = text;
     }
 
     // ===== Ressources (uniquement ce que le serveur utilise) =====
-
-    private long _serverFolderBytes = -1;
-    private DateTime _folderMeasuredAt;
-    private bool _measuringFolder;
 
     private void UpdateResources()
     {
         var process = ServerManager.Instance.ServerProcess;
         bool running = process != null && ServerManager.Instance.IsRunning;
-
         double cpuPercent = 0;
         long ramBytes = 0;
         bool cpuReady = false;
@@ -244,83 +230,332 @@ public partial class ServerPage : UserControl
         }
         if (!running) _lastSample = default;
 
-        // Processeur utilisé par le serveur.
         CpuValue.Text = !running ? "—" : cpuReady ? $"{cpuPercent:0} %" : "…";
         CpuBar.Value = running ? cpuPercent : 0;
-        CpuInfo.Text = running
-            ? $"Sur les {Environment.ProcessorCount} cœurs du processeur"
-            : "Serveur hors ligne";
+        CpuInfo.Text = running ? $"Utilisé par le serveur · {Environment.ProcessorCount} cœurs" : "Serveur hors ligne";
 
-        // Mémoire utilisée par le serveur, comparée à la RAM du PC.
-        var memory = SystemMetrics.GetMemory();
-        ulong totalRam = memory?.Total ?? 0;
+        var totalRam = SystemMetrics.GetMemory()?.Total ?? 0;
         RamValue.Text = running ? FormatBytes(ramBytes) : "—";
         RamBar.Value = running && totalRam > 0 ? ramBytes * 100.0 / totalRam : 0;
         RamInfo.Text = !running
             ? "Serveur hors ligne"
-            : totalRam > 0
-                ? $"{ramBytes * 100.0 / totalRam:0} % des {FormatBytes((long)totalRam)} de RAM du PC"
-                : "";
-
-        UpdateDisk();
+            : totalRam > 0 ? $"{ramBytes * 100.0 / totalRam:0} % des {FormatBytes((long)totalRam)} du PC" : "";
     }
 
-    /// <summary>Place occupée par le dossier du serveur (mesurée en arrière-plan toutes les 5 minutes).</summary>
-    private void UpdateDisk()
+    // ===== Joueurs =====
+
+    private async Task UpdatePlayersAsync()
     {
-        var mainFolder = AppSettings.Current.ServerFolder;
-        if (!DependencyChecker.IsServerInstalled(mainFolder))
+        if (_loadingPlayers) return;
+        _loadingPlayers = true;
+        try
         {
-            DiskValue.Text = "—";
-            DiskBar.Value = 0;
-            DiskInfo.Text = "Serveur non installé";
-            return;
-        }
-
-        DriveInfo? drive = null;
-        try { drive = new DriveInfo(Path.GetPathRoot(mainFolder)!); } catch { /* lecteur illisible */ }
-
-        if (_serverFolderBytes >= 0)
-        {
-            DiskValue.Text = FormatBytes(_serverFolderBytes);
-            DiskBar.Value = drive != null && drive.TotalSize > 0 ? _serverFolderBytes * 100.0 / drive.TotalSize : 0;
-            DiskInfo.Text = drive != null
-                ? $"Dossier du serveur · {FormatBytes(drive.AvailableFreeSpace)} libres sur {drive.Name}"
-                : "Dossier du serveur";
-        }
-        else
-        {
-            DiskValue.Text = "…";
-            DiskInfo.Text = "Calcul de la taille du serveur…";
-        }
-
-        if (_measuringFolder || (_serverFolderBytes >= 0 && DateTime.UtcNow - _folderMeasuredAt < TimeSpan.FromMinutes(5)))
-            return;
-
-        _measuringFolder = true;
-        var serverFolder = ServerManager.ServerFolder;
-        Task.Run(() => FolderSize(serverFolder)).ContinueWith(task =>
-        {
-            Dispatcher.InvokeAsync(() =>
+            if (DateTime.Today != _peakDay)
             {
-                if (task.Status == TaskStatus.RanToCompletion) _serverFolderBytes = task.Result;
-                _folderMeasuredAt = DateTime.UtcNow;
-                _measuringFolder = false;
-                UpdateDisk();
+                _peakDay = DateTime.Today;
+                _peak = 0;
+            }
+
+            if (!ServerManager.Instance.IsRunning)
+            {
+                _playerCount = null;
+                PlayersValue.Text = "—";
+                PlayersBar.Value = 0;
+                PlayersSub.Text = "Serveur hors ligne";
+                ShowPlayersMessage("Le serveur n'est pas lancé.");
+                BadgesChanged?.Invoke(null, _economyErrors);
+                return;
+            }
+
+            // Nombre de joueurs : la même information que la liste des serveurs du jeu.
+            var info = await ServerQuery.QueryAsync(AppSettings.Current.QueryPort);
+            if (info != null)
+            {
+                _playerCount = info.Players;
+                _peak = Math.Max(_peak, info.Players);
+                PlayersValue.Text = $"{info.Players} / {info.MaxPlayers}";
+                PlayersBar.Value = info.MaxPlayers > 0 ? info.Players * 100.0 / info.MaxPlayers : 0;
+                PlayersSub.Text = $"Pic du jour : {_peak}";
+            }
+            else
+            {
+                _playerCount = null;
+                PlayersValue.Text = "…";
+                PlayersBar.Value = 0;
+                PlayersSub.Text = "Serveur en cours de démarrage";
+            }
+            BadgesChanged?.Invoke(_playerCount, _economyErrors);
+
+            // Liste détaillée (RCon), seulement quand la page est affichée.
+            if (!IsVisible) return;
+            if (string.IsNullOrWhiteSpace(BattlEyeConfig.ReadPassword()))
+            {
+                ShowPlayersMessage("Ajoute un mot de passe RCon dans Configuration pour voir la liste des joueurs.");
+                return;
+            }
+            try
+            {
+                var players = await RconService.Instance.GetPlayersAsync();
+                BuildPlayers(players);
+            }
+            catch
+            {
+                ShowPlayersMessage(info == null
+                    ? "Liste disponible une fois le serveur démarré (1 à 2 minutes)."
+                    : $"Liste des joueurs indisponible : {RconService.Instance.LastError}");
+            }
+        }
+        finally
+        {
+            _loadingPlayers = false;
+        }
+    }
+
+    private void BuildPlayers(List<PlayerInfo> players)
+    {
+        PlayersPanel.Children.Clear();
+        if (players.Count == 0)
+        {
+            ShowPlayersMessage("Aucun joueur connecté pour le moment.");
+            return;
+        }
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            var player = players[i];
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            grid.Children.Add(new Border
+            {
+                Width = 30,
+                Height = 30,
+                CornerRadius = new CornerRadius(15),
+                Background = Res("Panel2Brush"),
+                Child = new TextBlock
+                {
+                    Text = player.Name.Length > 0 ? player.Name[..1].ToUpperInvariant() : "?",
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = Res("AccentBrush"),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
             });
+
+            var name = new TextBlock
+            {
+                Text = player.InLobby ? $"{player.Name} (connexion…)" : player.Name,
+                FontSize = 14,
+                FontWeight = FontWeights.Medium,
+                Foreground = Res("TextBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 12, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            };
+            Grid.SetColumn(name, 1);
+            grid.Children.Add(name);
+
+            var ping = new TextBlock
+            {
+                Text = $"{player.Ping} ms",
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 12,
+                Foreground = Res(player.Ping > 120 ? "WarnBrush" : "CyanBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(ping, 2);
+            grid.Children.Add(ping);
+
+            PlayersPanel.Children.Add(Row(grid, i));
+        }
+    }
+
+    private void ShowPlayersMessage(string message)
+    {
+        PlayersPanel.Children.Clear();
+        PlayersPanel.Children.Add(new TextBlock
+        {
+            Text = message,
+            FontSize = 13,
+            Foreground = Res("MutedBrush"),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0),
         });
     }
 
-    private static long FolderSize(string folder)
+    // ===== Points à surveiller =====
+
+    private async Task UpdateAlertsAsync()
     {
-        long total = 0;
-        var options = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true };
-        foreach (var file in new DirectoryInfo(folder).EnumerateFiles("*", options))
+        if (_checking) return;
+        _checking = true;
+        try
         {
-            try { total += file.Length; } catch { /* fichier en cours d'utilisation */ }
+            var settings = AppSettings.Current;
+            bool installed = DependencyChecker.IsServerInstalled(settings.ServerFolder);
+
+            // Vérifications plus longues (fichiers d'économie, pare-feu) : toutes les 5 minutes.
+            if (installed && DateTime.Now - _slowChecksAt > TimeSpan.FromMinutes(5))
+            {
+                _slowChecksAt = DateTime.Now;
+                _economyErrors = await Task.Run(() => CountEconomyErrors());
+                try
+                {
+                    var status = await FirewallService.GetStatusAsync();
+                    _firewallOpen = status.Values.All(open => open);
+                }
+                catch
+                {
+                    _firewallOpen = null;
+                }
+                BadgesChanged?.Invoke(_playerCount, _economyErrors);
+            }
+
+            var alerts = new List<Alert>();
+            if (!installed)
+            {
+                alerts.Add(new Alert("WarnBrush", "Le serveur n'est pas installé",
+                    "L'assistant télécharge SteamCMD, les fichiers du serveur et ouvre le pare-feu.", "Installer", "install"));
+            }
+            else
+            {
+                if (_economyErrors > 0)
+                    alerts.Add(new Alert("WarnBrush", $"{_economyErrors} fichier(s) d'économie en erreur",
+                        "Le serveur risque de ne pas faire apparaître ces objets.", "Corriger", "economy"));
+
+                if (_firewallOpen == false)
+                    alerts.Add(new Alert("WarnBrush", "Ports fermés dans le pare-feu Windows",
+                        "Les joueurs ne pourront pas rejoindre le serveur.", "Ouvrir", "firewall"));
+
+                if (string.IsNullOrWhiteSpace(BattlEyeConfig.ReadPassword()))
+                    alerts.Add(new Alert("WarnBrush", "Aucun mot de passe RCon",
+                        "Nécessaire pour la liste des joueurs et les avertissements avant redémarrage.", "Régler", "config"));
+
+                var drive = FreeSpace(settings.ServerFolder);
+                if (drive is < 10L * 1_073_741_824)
+                    alerts.Add(new Alert("WarnBrush", "Peu d'espace disque",
+                        $"{FormatBytes(drive.Value)} libres : les sauvegardes et mises à jour risquent d'échouer.", "Sauvegardes", "backups"));
+            }
+
+            if (_updateVersion != null)
+                alerts.Add(new Alert("AccentBrush", $"Version {_updateVersion} de l'application disponible",
+                    "Les nouveautés sont dans le patch note.", "Voir", "updates"));
+
+            if (installed)
+            {
+                BackupInfo? last = null;
+                try { last = await Task.Run(() => BackupService.List().FirstOrDefault()); }
+                catch { /* dossier illisible */ }
+                alerts.Add(last == null
+                    ? new Alert("AccentBrush", "Aucune sauvegarde pour l'instant",
+                        settings.AutoBackup ? "Une sauvegarde sera faite au prochain démarrage du serveur." : "La sauvegarde automatique est désactivée.",
+                        "Sauvegardes", "backups")
+                    : new Alert("CyanBrush", $"Dernière sauvegarde : {last.Date:dd/MM à HH:mm}",
+                        $"{last.Map} · {last.ReasonLabel} · {FormatBytes(last.Size)}", "Ouvrir", "backups"));
+            }
+
+            if (installed && alerts.All(a => a.Brush != "WarnBrush"))
+                alerts.Insert(0, new Alert("CyanBrush", "Tout est en ordre", "Aucun problème détecté sur le serveur."));
+
+            BuildAlerts(alerts.Take(5).ToList());
         }
-        return total;
+        finally
+        {
+            _checking = false;
+        }
     }
+
+    private static int CountEconomyErrors()
+    {
+        try
+        {
+            var mission = EconomyService.MissionFolder();
+            if (mission == null) return 0;
+            return EconomyService.ReadFolders(mission).SelectMany(f => f.Files).Count(f => !EconomyService.Check(f).Ok);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private static long? FreeSpace(string folder)
+    {
+        try { return new DriveInfo(Path.GetPathRoot(folder)!).AvailableFreeSpace; }
+        catch { return null; }
+    }
+
+    private void BuildAlerts(List<Alert> alerts)
+    {
+        AlertsPanel.Children.Clear();
+        for (int i = 0; i < alerts.Count; i++)
+        {
+            var alert = alerts[i];
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var brush = Res(alert.Brush);
+            grid.Children.Add(new System.Windows.Shapes.Ellipse
+            {
+                Width = 8,
+                Height = 8,
+                Fill = brush,
+                VerticalAlignment = VerticalAlignment.Center,
+                Effect = new DropShadowEffect { Color = ((SolidColorBrush)brush).Color, BlurRadius = 8, ShadowDepth = 0, Opacity = 0.9 },
+            });
+
+            var texts = new StackPanel { Margin = new Thickness(12, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center };
+            texts.Children.Add(new TextBlock
+            {
+                Text = alert.Title,
+                FontSize = 13.5,
+                FontWeight = FontWeights.Medium,
+                Foreground = Res("TextBrush"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            texts.Children.Add(new TextBlock
+            {
+                Text = alert.Sub,
+                FontSize = 12,
+                Foreground = Res("MutedBrush"),
+                Margin = new Thickness(0, 2, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            Grid.SetColumn(texts, 1);
+            grid.Children.Add(texts);
+
+            if (alert.Action != null && alert.Target != null)
+            {
+                var target = alert.Target;
+                var button = new Button
+                {
+                    Content = alert.Action,
+                    Style = (Style)Application.Current.FindResource("SmallButton"),
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                button.Click += (_, _) => NavigateRequested?.Invoke(target);
+                Grid.SetColumn(button, 2);
+                grid.Children.Add(button);
+            }
+
+            AlertsPanel.Children.Add(Row(grid, i));
+        }
+    }
+
+    // ===== Outils =====
+
+    private Border Row(UIElement content, int index) => new()
+    {
+        BorderBrush = Res("LineBrush"),
+        BorderThickness = new Thickness(0, index == 0 ? 0 : 1, 0, 0),
+        Padding = new Thickness(0, 9, 0, 9),
+        Child = content,
+    };
 
     private static string FormatBytes(long bytes) =>
         bytes >= 1_099_511_627_776 ? $"{bytes / 1_099_511_627_776.0:0.0} To"

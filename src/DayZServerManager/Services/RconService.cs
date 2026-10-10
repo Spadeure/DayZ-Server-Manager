@@ -59,7 +59,7 @@ public sealed class RconService
         }
         catch (TimeoutException) when (!BattlEyeConfig.IsActive())
         {
-            LastError = "BattlEye n'a pas activé le RCon : redémarre le serveur depuis l'application (onglet Serveur → Redémarrer), "
+            LastError = "BattlEye n'a pas activé le RCon : redémarre le serveur depuis l'application (Tableau de bord → Redémarrer), "
                         + "puis attends 2 minutes avant de te connecter.";
             return false;
         }

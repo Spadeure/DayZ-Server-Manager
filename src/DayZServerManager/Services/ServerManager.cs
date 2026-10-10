@@ -317,7 +317,7 @@ public sealed class ServerManager
                 var before = steam.GetInstalledBuildId();
                 var result = await steam.DownloadServerAsync(settings.SteamUser, null, CancellationToken.None);
                 if (!result.ServerInstallSucceeded)
-                    Log?.Invoke("Mise à jour du serveur impossible (reconnecte-toi à Steam depuis l'onglet Installation). Le serveur démarre quand même.");
+                    Log?.Invoke("Mise à jour du serveur impossible (reconnecte-toi à Steam (Paramètres → Ouvrir l'installation)). Le serveur démarre quand même.");
                 else
                     Log?.Invoke(before != steam.GetInstalledBuildId() ? "Serveur DayZ mis à jour !" : "Serveur DayZ déjà à jour.");
             }

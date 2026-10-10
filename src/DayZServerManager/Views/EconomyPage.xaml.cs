@@ -39,7 +39,7 @@ public partial class EconomyPage : UserControl
             {
                 MissionText.Text = "Mission introuvable";
                 CreateButton.IsEnabled = false;
-                ShowEmpty("Installe d'abord le serveur (onglet Installation) : la mission et son fichier cfgeconomycore.xml seront alors disponibles.");
+                ShowEmpty("Installe d'abord le serveur (Paramètres → Ouvrir l'installation) : la mission et son fichier cfgeconomycore.xml seront alors disponibles.");
                 ShowStatus("", "MutedBrush");
                 return;
             }
